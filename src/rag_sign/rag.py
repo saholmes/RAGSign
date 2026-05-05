@@ -36,14 +36,41 @@ from dataclasses import dataclass
 
 from rag_sign.corpus import Chunk
 from rag_sign.fuzzy_extractor import HelperData
+from rag_sign.fuzzy_extractor import T as BCH_T
 from rag_sign.fuzzy_extractor import gen as fe_gen
+from rag_sign.fuzzy_extractor import reconstruct_w as fe_reconstruct_w
 from rag_sign.fuzzy_extractor import rep as fe_rep
 from rag_sign.hsm import HSMBackend, InMemoryHSM
 from rag_sign.key_derivation import KeyMaterial, derive_signing_seed
 from rag_sign.llm import LLMBackend, assemble_prompt
-from rag_sign.lsh import fingerprint_corpus
+from rag_sign.lsh import fingerprint_corpus, hamming_distance
 from rag_sign.signer import RagSigner, SignedMessage
 from rag_sign.vector_db import ChromaVectorDB
+
+
+class DriftPolicyExceeded(RuntimeError):
+    """Raised when corpus drift exceeds the configured *policy* bound.
+
+    The policy bound is a soft fence the deployment chooses below the
+    cryptographic hard ceiling (the BCH ``t`` parameter).  When this
+    fires, BCH recovery would in fact still succeed — the system is
+    deliberately failing closed earlier so the operator can rotate
+    the signing key before the corpus drifts close enough to the
+    cliff that BCH itself starts losing.
+
+    Caught typically by control-plane code which then invokes
+    :meth:`RagSignSystem.regenerate` to rotate.
+    """
+
+    def __init__(self, hamming: int, policy_bits: int, bch_t: int) -> None:
+        self.hamming = hamming
+        self.policy_bits = policy_bits
+        self.bch_t = bch_t
+        super().__init__(
+            f"corpus drift {hamming} bits exceeds policy bound "
+            f"{policy_bits} bits (BCH ceiling t={bch_t}); "
+            f"rotate via RagSignSystem.regenerate()"
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,9 +91,17 @@ class EnrolmentBundle:
 
 @dataclass(slots=True)
 class _SystemState:
-    """Internal: holds the live signer once enrolment / recovery succeeds."""
+    """Internal: holds the live signer once enrolment / recovery succeeds.
+
+    ``w_enrol`` is kept locally only — it is *not* part of
+    :class:`EnrolmentBundle` because publishing
+    ``(helper, w_enrol)`` would let an observer recover the codeword
+    ``c = helper ⊕ w_enrol`` and from it the secret ``R``.  It is
+    recomputed from the corpus at enrolment / recovery time.
+    """
     signer: RagSigner
     bundle: EnrolmentBundle
+    w_enrol: bytes
 
 
 class RagSignSystem:
@@ -86,11 +121,39 @@ class RagSignSystem:
         llm: LLMBackend,
         hsm: HSMBackend | None = None,
         top_k: int = 5,
+        drift_policy_bits: int | None = None,
     ) -> None:
+        """Configure backends and (optionally) a drift-policy threshold.
+
+        ``drift_policy_bits`` is a *soft* ceiling on the Hamming distance
+        between the enrolment fingerprint and any later one.  When set,
+        :meth:`recover` and :meth:`check_drift` raise
+        :class:`DriftPolicyExceeded` as soon as the drift exceeds this
+        bound — even if BCH could in fact still recover.  Use it to
+        rotate the signing key well before the corpus drifts to the
+        edge of the BCH cliff (paper §6.5).
+
+        ``None`` (the default) means no soft policy: the only ceiling
+        is the BCH bound ``T`` from :mod:`rag_sign.fuzzy_extractor`.
+        """
+        if drift_policy_bits is not None:
+            if drift_policy_bits < 0:
+                raise ValueError(
+                    f"drift_policy_bits must be ≥ 0 (got {drift_policy_bits})"
+                )
+            if drift_policy_bits > BCH_T:
+                # Higher than the BCH bound is meaningless — BCH will fail
+                # before the policy fires.
+                raise ValueError(
+                    f"drift_policy_bits ({drift_policy_bits}) must be ≤ "
+                    f"BCH bound t={BCH_T}; values above the cryptographic "
+                    f"ceiling cannot be enforced"
+                )
         self._db = vector_db
         self._llm = llm
         self._hsm: HSMBackend = hsm or InMemoryHSM()
         self._top_k = top_k
+        self._drift_policy_bits = drift_policy_bits
         self._state: _SystemState | None = None
 
     # ------------------------------------------------------------------
@@ -128,7 +191,7 @@ class RagSignSystem:
             hsm_handle=handle,
             model_hash=model_hash,
         )
-        self._state = _SystemState(signer=signer, bundle=bundle)
+        self._state = _SystemState(signer=signer, bundle=bundle, w_enrol=w)
         return bundle
 
     def recover(
@@ -138,10 +201,16 @@ class RagSignSystem:
     ) -> None:
         """Recover the signing key from a (possibly drifted) corpus + bundle.
 
-        Raises :class:`rag_sign.fuzzy_extractor.FuzzyExtractFailure` if
-        the corpus has drifted past the ``T``-bit BCH bound.  Raises
-        :class:`AssertionError` if the recovered public key does not
-        match the bundle's — a smoke-test against silent corruption.
+        Order of failure modes:
+
+        1. :class:`DriftPolicyExceeded` — drift over the soft policy
+           bound (if configured).  BCH could still recover but the
+           operator wants to rotate before getting closer to the cliff.
+        2. :class:`rag_sign.fuzzy_extractor.FuzzyExtractFailure` —
+           drift over the BCH bound; recovery is cryptographically
+           impossible.
+        3. :class:`AssertionError` — recovered public key does not
+           match the bundle's (smoke-test against silent corruption).
         """
         if self._state is not None:
             raise RuntimeError("system already enrolled / recovered")
@@ -149,6 +218,44 @@ class RagSignSystem:
         self._db.add(list(chunks))
 
         w = fingerprint_corpus([c.text for c in chunks])
+
+        # Policy gate fires *before* BCH so the operator can rotate
+        # cleanly while recovery would still succeed cryptographically.
+        if self._drift_policy_bits is not None:
+            # We need the enrolment fingerprint to measure drift.  At
+            # recovery time we don't have it locally — but we can
+            # reconstruct it from (helper, codeword) once BCH succeeds.
+            # To enforce the policy *before* BCH, we instead rely on
+            # the BCH bound itself: if BCH succeeds, the recovered ``r``
+            # gives us the codeword, which together with helper yields
+            # ``w_enrol``.  Compute that, measure drift, decide.
+            r = fe_rep(w, bundle.helper)
+            secret = self._hsm.fetch(bundle.hsm_handle)
+            material = KeyMaterial(
+                model_hash=bundle.model_hash,
+                lsh_key=r,
+                hsm_secret=secret,
+            )
+            seed = derive_signing_seed(material)
+            signer = RagSigner(seed)
+            if signer.public_key_pem != bundle.public_key_pem:
+                raise AssertionError(
+                    "recovered public key does not match enrolment bundle — "
+                    "corpus or HSM state is inconsistent"
+                )
+
+            w_enrol = fe_reconstruct_w(w, bundle.helper)
+            hamming = hamming_distance(w_enrol, w)
+            if hamming > self._drift_policy_bits:
+                raise DriftPolicyExceeded(
+                    hamming=hamming,
+                    policy_bits=self._drift_policy_bits,
+                    bch_t=BCH_T,
+                )
+            self._state = _SystemState(signer=signer, bundle=bundle, w_enrol=w_enrol)
+            return
+
+        # No policy configured — BCH bound is the only ceiling.
         r = fe_rep(w, bundle.helper)
 
         secret = self._hsm.fetch(bundle.hsm_handle)
@@ -165,7 +272,85 @@ class RagSignSystem:
                 "recovered public key does not match enrolment bundle — "
                 "corpus or HSM state is inconsistent"
             )
-        self._state = _SystemState(signer=signer, bundle=bundle)
+        w_enrol = fe_reconstruct_w(w, bundle.helper)
+        self._state = _SystemState(signer=signer, bundle=bundle, w_enrol=w_enrol)
+
+    # ------------------------------------------------------------------
+    # Drift policy + rotation
+    # ------------------------------------------------------------------
+
+    def check_drift(self, chunks: Sequence[Chunk]) -> int:
+        """Measure Hamming distance between the live corpus and enrolment.
+
+        Returns the distance in bits.  Raises
+        :class:`DriftPolicyExceeded` if a soft policy is configured and
+        the live drift exceeds it.  Does **not** raise on BCH-bound
+        violation — :meth:`recover` is the place for that.
+        """
+        state = self._require_state()
+        w_now = fingerprint_corpus([c.text for c in chunks])
+        d = hamming_distance(state.w_enrol, w_now)
+        if (
+            self._drift_policy_bits is not None
+            and d > self._drift_policy_bits
+        ):
+            raise DriftPolicyExceeded(
+                hamming=d,
+                policy_bits=self._drift_policy_bits,
+                bch_t=BCH_T,
+            )
+        return d
+
+    def regenerate(
+        self,
+        chunks: Sequence[Chunk],
+        *,
+        model_hash: bytes | None = None,
+    ) -> EnrolmentBundle:
+        """Rotate the signing key against the *current* corpus.
+
+        Used after a :class:`DriftPolicyExceeded` event (or at any
+        time the deployment chooses to rotate).  The HSM secret stays
+        put — only the LSH-derived component changes — so the new
+        public key is uncorrelated with the old one.
+
+        ``model_hash`` defaults to the previous bundle's value; pass
+        a new one if the LLM weights have also changed.
+
+        Returns the new :class:`EnrolmentBundle`.  Callers should
+        publish ``bundle.public_key_pem`` as the deployment's new
+        long-term identity and revoke the old key from any
+        allow-lists.
+        """
+        state = self._require_state()
+        prev = state.bundle
+
+        # Fresh fingerprint over the current corpus.
+        w_new = fingerprint_corpus([c.text for c in chunks])
+        r_new, helper_new = fe_gen(w_new)
+
+        # Re-use the existing HSM secret — same chip, same model, new
+        # corpus identity.  This is what makes the *signing key* rotate
+        # while the operational continuity (HSM provisioning, model
+        # weights) is preserved.
+        secret = self._hsm.fetch(prev.hsm_handle)
+
+        material = KeyMaterial(
+            model_hash=model_hash if model_hash is not None else prev.model_hash,
+            lsh_key=r_new,
+            hsm_secret=secret,
+        )
+        seed = derive_signing_seed(material)
+        signer = RagSigner(seed)
+
+        bundle = EnrolmentBundle(
+            public_key_pem=signer.public_key_pem,
+            helper=helper_new,
+            hsm_handle=prev.hsm_handle,
+            model_hash=material.model_hash,
+        )
+        self._state = _SystemState(signer=signer, bundle=bundle, w_enrol=w_new)
+        return bundle
 
     # ------------------------------------------------------------------
     # Working API

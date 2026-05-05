@@ -142,6 +142,42 @@ def gen(w: bytes) -> tuple[bytes, HelperData]:
     return _extract_R(c_bits), HelperData(bits=_bits_to_bytes(p_bits))
 
 
+def reconstruct_w(w_prime: bytes, helper: HelperData) -> bytes:
+    """Recover the original enrolment fingerprint ``w`` from ``(w', helper)``.
+
+    Useful for drift measurement after a successful :func:`rep`: the
+    orchestrator wants to compare the current corpus fingerprint
+    against the one that was used at enrolment time, but never sees
+    that ``w`` directly (it lives only in the live process at
+    enrolment).  After recovery, the caller passes ``(w_prime, helper)``
+    here and gets back the canonical 64-byte ``w``.
+
+    The returned value is **sensitive** — together with ``helper`` it
+    reveals the codeword and from there the secret ``R``.  Keep it
+    inside the live process boundary; never serialise.
+
+    Raises :class:`FuzzyExtractFailure` if the BCH decoder cannot
+    correct ``w' ⊕ helper`` (drift exceeds ``T``).
+    """
+    if len(w_prime) * 8 < _N:
+        raise ValueError(
+            f"w' must be at least {(_N + 7) // 8} bytes (got {len(w_prime)})"
+        )
+
+    w_bits = _bytes_to_bits(w_prime, _N)
+    p_bits = _bytes_to_bits(helper.bits, _N)
+
+    received = galois.GF2(np.bitwise_xor(w_bits, p_bits))
+    decoded_msg, n_errors = _bch().decode(received, errors=True)
+    if n_errors == -1:
+        raise FuzzyExtractFailure(
+            f"corpus drift exceeded threshold (t={_T}); decoding failed"
+        )
+    c_arr = _bch().encode(decoded_msg)
+    c_bits = np.array(c_arr, dtype=np.uint8)
+    return _bits_to_bytes(np.bitwise_xor(p_bits, c_bits))
+
+
 def rep(w_prime: bytes, helper: HelperData) -> bytes:
     """Recovery.  Re-derive ``R`` from a noisy reading and helper data.
 

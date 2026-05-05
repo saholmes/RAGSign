@@ -274,6 +274,41 @@ the construction tolerates drift up to roughly \SI{12}{\percent}
 before crossing the bound; the failure cliff is sharp,
 spanning only $5$ percentage points.
 
+\paragraph{Two thresholds, not one.}  The BCH parameter $t = 30$
+(equivalently the empirical \SIrange{12}{13}{\percent} corpus-replacement
+cliff) is the \emph{cryptographic} ceiling: beyond it, no recovery is
+possible at all.  A deployment is free to enforce a tighter
+\emph{operational policy} bound below this ceiling — say, the paper's
+\SI{5}{\percent} ($\approx 14$ bits) — and rotate the signing key as
+soon as live drift exceeds the policy.  The reference implementation
+exposes this as the
+\texttt{drift\nobreakdash-policy\nobreakdash-bits} parameter on the
+\texttt{RagSignSystem} class, with a
+\texttt{check\_drift()} probe and a
+\texttt{regenerate()} key\nobreakdash-rotation method that re\nobreakdash-enrols
+against the current corpus while preserving the HSM secret so the
+deployment carries on uninterrupted.  The two thresholds are
+distinct in role:
+
+\begin{itemize}
+  \item \textbf{BCH bound $t$} — built into the cryptographic
+        primitive; immutable for a given fuzzy\nobreakdash-extractor
+        parameterisation; failing here is a hard
+        \texttt{FuzzyExtractFailure}.
+  \item \textbf{Policy bound} — a deployment\nobreakdash-time
+        configuration variable; failing here raises
+        \texttt{DriftPolicyExceeded} which the operator catches and
+        responds to by rotating the key.  It cannot be set above $t$
+        because no policy stricter than the BCH ceiling can ever
+        actually fire.
+\end{itemize}
+
+We recommend setting the policy at the paper's \SI{5}{\percent}
+level for the safety margin reasons in
+Section~\ref{sec:threats}: it gives the deployment a clean rotation
+event well before the corpus drifts close enough to the cliff that
+MinHash variance or adversarial perturbation could push it over.
+
 \subsection{Disjoint corpus rejection}
 \label{sec:disjoint}
 
