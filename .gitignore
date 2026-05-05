@@ -48,6 +48,15 @@ data/                # corpora live here
 models/              # downloaded LLM weights
 chroma_data/         # vector DB persistence
 softhsm_tokens/      # SoftHSM token store
+
+# IACR ePrint data — copyright material; NEVER commit.
+# Even partial extracts (text caches) live outside the repo by default,
+# but block any path that may end up here by mistake.
+iacr_*_papers/
+iacr_text/
+*.pdf
+!docs/*.pdf          # explicit allow for repo docs only
+iacr_experiment.json # experiment results may include identifying snippets
 *.pem
 *.key
 !example_*.pem       # example keys are fine
