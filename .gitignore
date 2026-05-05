@@ -1,0 +1,61 @@
+# Python build / cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+dist/
+.eggs/
+*.egg
+pip-wheel-metadata/
+.installed.cfg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# Test / coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+coverage.xml
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*.bak
+
+# Tool / agent metadata (NEVER commit)
+.claude-flow/
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project artefacts (regenerated locally)
+data/                # corpora live here
+models/              # downloaded LLM weights
+chroma_data/         # vector DB persistence
+softhsm_tokens/      # SoftHSM token store
+*.pem
+*.key
+!example_*.pem       # example keys are fine
+*.log
+bench_results/
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+secrets/

@@ -1,0 +1,204 @@
+"""End-to-end RAG-Sign pipeline.
+
+Brings together:
+
+* :mod:`rag_sign.lsh`              — corpus fingerprint
+* :mod:`rag_sign.fuzzy_extractor`  — drift-tolerant key recovery
+* :mod:`rag_sign.hsm`              — long-term secret custody
+* :mod:`rag_sign.key_derivation`   — Algorithm 1 (SHA3-256 binding)
+* :mod:`rag_sign.signer`           — ECDSA P-256 signing
+* :mod:`rag_sign.vector_db`        — Chroma retrieval store
+* :mod:`rag_sign.llm`              — Llama 3.2 generation
+
+Two-phase lifecycle:
+
+* :meth:`RagSignSystem.enrol` — first run on a fresh corpus.  Embeds
+  and indexes every chunk, computes the LSH fingerprint, generates an
+  HSM secret, derives the signing key, and emits an
+  :class:`EnrolmentBundle` containing everything a recovering instance
+  needs to re-derive the same key (helper data, HSM handle, model
+  fingerprint).  The bundle's ``public_key_pem`` becomes the long-term
+  identity that downstream verifiers / allow-lists trust.
+
+* :meth:`RagSignSystem.recover` — subsequent runs.  Re-embeds the
+  current corpus, reconstructs the fingerprint, runs the fuzzy-
+  extractor recovery, fetches the HSM secret, and re-derives the same
+  key.  Fails closed if the corpus has drifted past the BCH bound.
+
+Once recovered, :meth:`RagSignSystem.query` is the working API: it
+retrieves, generates, and signs in one shot.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Sequence
+from dataclasses import dataclass
+
+from rag_sign.corpus import Chunk
+from rag_sign.fuzzy_extractor import HelperData
+from rag_sign.fuzzy_extractor import gen as fe_gen
+from rag_sign.fuzzy_extractor import rep as fe_rep
+from rag_sign.hsm import HSMBackend, InMemoryHSM
+from rag_sign.key_derivation import KeyMaterial, derive_signing_seed
+from rag_sign.llm import LLMBackend, assemble_prompt
+from rag_sign.lsh import fingerprint_corpus
+from rag_sign.signer import RagSigner, SignedMessage
+from rag_sign.vector_db import ChromaVectorDB
+
+
+@dataclass(frozen=True, slots=True)
+class EnrolmentBundle:
+    """Public state needed to bring up a recovering :class:`RagSignSystem`.
+
+    Distributed at enrolment time.  Knowing this bundle is *not*
+    sufficient to forge a signature — recovery additionally requires
+    the same model file (to reproduce ``model_hash``) and a live
+    connection to the HSM that holds the secret named by ``hsm_handle``.
+    """
+
+    public_key_pem: bytes
+    helper: HelperData
+    hsm_handle: bytes
+    model_hash: bytes
+
+
+@dataclass(slots=True)
+class _SystemState:
+    """Internal: holds the live signer once enrolment / recovery succeeds."""
+    signer: RagSigner
+    bundle: EnrolmentBundle
+
+
+class RagSignSystem:
+    """Top-level RAG-Sign service.
+
+    Construction wires the four pluggable backends but does **not**
+    derive any keys — that happens via :meth:`enrol` (first run) or
+    :meth:`recover` (subsequent runs).  The class enforces this
+    explicitly so a deployment cannot accidentally serve unsigned
+    answers.
+    """
+
+    def __init__(
+        self,
+        *,
+        vector_db: ChromaVectorDB,
+        llm: LLMBackend,
+        hsm: HSMBackend | None = None,
+        top_k: int = 5,
+    ) -> None:
+        self._db = vector_db
+        self._llm = llm
+        self._hsm: HSMBackend = hsm or InMemoryHSM()
+        self._top_k = top_k
+        self._state: _SystemState | None = None
+
+    # ------------------------------------------------------------------
+    # Lifecycle
+    # ------------------------------------------------------------------
+
+    def enrol(self, chunks: Sequence[Chunk], *, model_hash: bytes) -> EnrolmentBundle:
+        """Run on a fresh corpus.  Index, fingerprint, derive key, return bundle."""
+        if self._state is not None:
+            raise RuntimeError("system already enrolled / recovered")
+
+        # 1. Index the corpus into the vector store.
+        self._db.add(list(chunks))
+
+        # 2. Build the corpus fingerprint and run the fuzzy-extractor enrolment.
+        w = fingerprint_corpus([c.text for c in chunks])
+        r, helper = fe_gen(w)
+
+        # 3. Provision the HSM secret.
+        handle = self._hsm.enrol()
+        secret = self._hsm.fetch(handle)
+
+        # 4. Derive the signing seed via Algorithm 1.
+        material = KeyMaterial(
+            model_hash=model_hash,
+            lsh_key=r,
+            hsm_secret=secret,
+        )
+        seed = derive_signing_seed(material)
+        signer = RagSigner(seed)
+
+        bundle = EnrolmentBundle(
+            public_key_pem=signer.public_key_pem,
+            helper=helper,
+            hsm_handle=handle,
+            model_hash=model_hash,
+        )
+        self._state = _SystemState(signer=signer, bundle=bundle)
+        return bundle
+
+    def recover(
+        self,
+        chunks: Sequence[Chunk],
+        bundle: EnrolmentBundle,
+    ) -> None:
+        """Recover the signing key from a (possibly drifted) corpus + bundle.
+
+        Raises :class:`rag_sign.fuzzy_extractor.FuzzyExtractFailure` if
+        the corpus has drifted past the ``T``-bit BCH bound.  Raises
+        :class:`AssertionError` if the recovered public key does not
+        match the bundle's — a smoke-test against silent corruption.
+        """
+        if self._state is not None:
+            raise RuntimeError("system already enrolled / recovered")
+
+        self._db.add(list(chunks))
+
+        w = fingerprint_corpus([c.text for c in chunks])
+        r = fe_rep(w, bundle.helper)
+
+        secret = self._hsm.fetch(bundle.hsm_handle)
+        material = KeyMaterial(
+            model_hash=bundle.model_hash,
+            lsh_key=r,
+            hsm_secret=secret,
+        )
+        seed = derive_signing_seed(material)
+        signer = RagSigner(seed)
+
+        if signer.public_key_pem != bundle.public_key_pem:
+            raise AssertionError(
+                "recovered public key does not match enrolment bundle — "
+                "corpus or HSM state is inconsistent"
+            )
+        self._state = _SystemState(signer=signer, bundle=bundle)
+
+    # ------------------------------------------------------------------
+    # Working API
+    # ------------------------------------------------------------------
+
+    def query(self, question: str) -> SignedMessage:
+        """Retrieve, generate, sign — return a :class:`SignedMessage`.
+
+        The signed payload is the **answer** the LLM produced, not the
+        question or the context.  Verifiers see only the answer + the
+        public key + the signature; binding the key to the corpus is
+        what makes the answer attributable to a specific deployment.
+        """
+        state = self._require_state()
+        retrieved = self._db.query(question, top_k=self._top_k)
+        contexts = [r.chunk.text for r in retrieved]
+        prompt = assemble_prompt(question, contexts)
+        answer = self._llm.generate(prompt)
+        return state.signer.sign(answer.encode("utf-8"))
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    @property
+    def public_key_pem(self) -> bytes:
+        return self._require_state().bundle.public_key_pem
+
+    @property
+    def is_ready(self) -> bool:
+        return self._state is not None
+
+    def _require_state(self) -> _SystemState:
+        if self._state is None:
+            raise RuntimeError("system not enrolled / recovered yet")
+        return self._state
