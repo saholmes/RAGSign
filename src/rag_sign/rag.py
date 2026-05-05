@@ -45,6 +45,7 @@ from rag_sign.hsm import HSMBackend, InMemoryHSM
 from rag_sign.key_derivation import KeyMaterial, derive_signing_seed
 from rag_sign.llm import LLMBackend, assemble_prompt
 from rag_sign.lsh import fingerprint_corpus, hamming_distance
+from rag_sign.model_fingerprint import hamming_distance as model_hamming_distance
 from rag_sign.regulator import (
     InvalidRegulatorDirective,
     RegulatorAuditToken,
@@ -56,6 +57,36 @@ from rag_sign.regulator import (
 )
 from rag_sign.signer import RagSigner, SignedMessage
 from rag_sign.vector_db import ChromaVectorDB
+
+
+class ModelSafetyReviewRequired(RuntimeError):
+    """Raised when the model has drifted past the configured safety bound.
+
+    Distinct from :class:`DriftPolicyExceeded` (which is about the
+    *corpus*) so callers can route the two events to different
+    responses: a corpus-drift event triggers a key rotation against
+    the live corpus; a model-drift event triggers an *AI safety
+    review* before the new weights are allowed to ship to production.
+
+    The deployment's signing key is *not* automatically rotated when
+    this fires — that is a deliberate operator decision after the
+    safety review concludes.
+    """
+
+    def __init__(
+        self,
+        hamming: int,
+        policy_bits: int,
+        fingerprint_bits: int,
+    ) -> None:
+        self.hamming = hamming
+        self.policy_bits = policy_bits
+        self.fingerprint_bits = fingerprint_bits
+        super().__init__(
+            f"model fingerprint drifted by {hamming} bits "
+            f"(policy bound {policy_bits} of {fingerprint_bits}); "
+            f"AI safety review required before redeploying"
+        )
 
 
 class DriftPolicyExceeded(RuntimeError):
@@ -134,6 +165,7 @@ class RagSignSystem:
         drift_policy_bits: int | None = None,
         regulator: RegulatorAuthority | None = None,
         deployment_id: str = "default",
+        model_drift_policy_bits: int | None = None,
     ) -> None:
         """Configure backends and (optionally) a drift-policy threshold.
 
@@ -161,11 +193,22 @@ class RagSignSystem:
                     f"BCH bound t={BCH_T}; values above the cryptographic "
                     f"ceiling cannot be enforced"
                 )
+        if model_drift_policy_bits is not None and model_drift_policy_bits < 0:
+            raise ValueError(
+                f"model_drift_policy_bits must be ≥ 0 "
+                f"(got {model_drift_policy_bits})"
+            )
         self._db = vector_db
         self._llm = llm
         self._hsm: HSMBackend = hsm or InMemoryHSM()
         self._top_k = top_k
         self._drift_policy_bits = drift_policy_bits
+        self._model_drift_policy_bits = model_drift_policy_bits
+        # Per-deployment model fingerprint set at enrolment time (or
+        # left as None if the deployment has not opted into the model-
+        # drift gate).  Stored locally only — does not flow into the
+        # EnrolmentBundle, since it does not affect Algorithm 1.
+        self._enrolled_model_fingerprint: bytes | None = None
         self._regulator = regulator
         self._deployment_id = deployment_id
         # Replay protection: every accepted regulator directive's nonce
@@ -183,10 +226,37 @@ class RagSignSystem:
     # Lifecycle
     # ------------------------------------------------------------------
 
-    def enrol(self, chunks: Sequence[Chunk], *, model_hash: bytes) -> EnrolmentBundle:
-        """Run on a fresh corpus.  Index, fingerprint, derive key, return bundle."""
+    def enrol(
+        self,
+        chunks: Sequence[Chunk],
+        *,
+        model_hash: bytes,
+        model_fingerprint: bytes | None = None,
+    ) -> EnrolmentBundle:
+        """Run on a fresh corpus.  Index, fingerprint, derive key, return bundle.
+
+        ``model_hash`` is the cryptographic identity of the model
+        (SHA3-256 of the weights — exact match per Algorithm 1).
+        ``model_fingerprint`` is the *operational* identity used by
+        the AI-safety drift gate: a SimHash-style fingerprint
+        (typically computed via :mod:`rag_sign.model_fingerprint`)
+        that tolerates small weight perturbations.  Pass it when
+        ``model_drift_policy_bits`` is configured; otherwise it can
+        be ``None``.
+        """
         if self._state is not None:
             raise RuntimeError("system already enrolled / recovered")
+        if (
+            self._model_drift_policy_bits is not None
+            and model_fingerprint is None
+        ):
+            raise ValueError(
+                "model_drift_policy_bits is configured but no "
+                "model_fingerprint was supplied to enrol() — the gate "
+                "needs the enrolment-time fingerprint to measure drift "
+                "against"
+            )
+        self._enrolled_model_fingerprint = model_fingerprint
 
         # 1. Index the corpus into the vector store.
         self._db.add(list(chunks))
@@ -321,6 +391,48 @@ class RagSignSystem:
                 hamming=d,
                 policy_bits=self._drift_policy_bits,
                 bch_t=BCH_T,
+            )
+        return d
+
+    def check_model_drift(self, model_fingerprint_now: bytes) -> int:
+        """Measure Hamming distance between the live model and enrolment.
+
+        Sister method to :meth:`check_drift`, but for the *model*
+        weights instead of the corpus.  The caller computes the live
+        model's SimHash (e.g. via
+        :func:`rag_sign.model_fingerprint.simhash_array` or
+        :func:`rag_sign.model_fingerprint.simhash_arrays`) and passes
+        the resulting bytes here.
+
+        Raises :class:`ModelSafetyReviewRequired` if a policy is
+        configured and the live drift exceeds it.  The raised
+        exception carries ``hamming`` / ``policy_bits`` /
+        ``fingerprint_bits`` so the operator can log the precise
+        drift figure into the safety-review ticket.
+
+        The deployment's signing key is *not* rotated automatically:
+        rotating on a model change is a deliberate human decision
+        ("after AI-safety review approves the new weights, then
+        rotate").  Callers should follow up with :meth:`regenerate`
+        once review concludes.
+        """
+        self._require_state()  # must be ready
+        if self._enrolled_model_fingerprint is None:
+            raise RuntimeError(
+                "no model fingerprint was supplied at enrolment; "
+                "check_model_drift requires enrol(... model_fingerprint=...)"
+            )
+        d = model_hamming_distance(
+            self._enrolled_model_fingerprint, model_fingerprint_now
+        )
+        if (
+            self._model_drift_policy_bits is not None
+            and d > self._model_drift_policy_bits
+        ):
+            raise ModelSafetyReviewRequired(
+                hamming=d,
+                policy_bits=self._model_drift_policy_bits,
+                fingerprint_bits=len(self._enrolled_model_fingerprint) * 8,
             )
         return d
 

@@ -353,6 +353,52 @@ seed.  The two roles — \emph{signing} and \emph{being audited} —
 are cryptographically distinct even though they share the same
 underlying corpus fingerprint.
 
+\paragraph{Model identity and AI-safety review.}  The
+drift\nobreakdash-tolerant fingerprint pattern that handles the
+\emph{corpus} layer also generalises to the model weights
+themselves, addressing a complementary operational question: if the
+LLM has been fine\nobreakdash-tuned, an adapter has been merged, or
+the weights have been re\nobreakdash-quantised, when should the
+deployment require an AI\nobreakdash-safety review before the new
+weights ship?  The reference implementation answers this with
+\texttt{rag\_sign.model\_fingerprint}: a SimHash-style fingerprint
+of the parameter tensors, computed by signing the projection of
+the flattened weights through a deterministic Gaussian random
+matrix~\cite{charikar2002simhash}.  Like MinHash for sets, SimHash
+is locality\nobreakdash-sensitive — but for cosine distance: small
+weight perturbations produce small Hamming distances and large
+ones (e.g.\ a model swap) produce a near\nobreakdash-random
+fingerprint with $\approx \mathit{dim}/2$ bits of difference.
+
+The fingerprint is supplied to
+:meth:\texttt{RagSignSystem.enrol(\dots, model\_fingerprint=\dots)}
+at enrolment time and stored locally — it does not flow into
+Algorithm~1, so the cryptographic signing identity is unaffected.
+A separate operator policy
+\texttt{model\_drift\_policy\_bits} configures the soft fence:
+calling \texttt{check\_model\_drift(fp\_now)} returns the live
+Hamming distance and raises
+\texttt{ModelSafetyReviewRequired} when it exceeds the policy.  The
+exception carries the precise drift bit\nobreakdash-count, the
+configured bound, and the total fingerprint length, so the
+deployment's safety pipeline can log and route accordingly.
+
+The AI-safety gate is deliberately operational rather than
+cryptographic: a model-drift event does \emph{not} automatically
+rotate the signing key (that would conflate "weights changed" with
+"compromise") — instead the operator (or a downstream safety
+review) decides whether the new weights are acceptable, and only
+then invokes \texttt{regenerate()} to mint a new key against the
+post\nobreakdash-review configuration.  Empirically the
+locality\nobreakdash-sensitivity property is sharp: in unit\nobreakdash-tested
+synthetic configurations, a Gaussian perturbation of standard
+deviation $10^{-3}$ relative to the weight scale produces a Hamming
+distance of $\leq 30$ bits in a $512$\nobreakdash-bit fingerprint
+($\leq 5.9\,\%$), while a comparable\nobreakdash-magnitude
+perturbation produces $\geq 80$ bits ($\geq 15.6\,\%$) — a
+$\sim\!3\times$ separation that translates directly into a clean
+threshold for the safety\nobreakdash-review trigger.
+
 \subsection{Disjoint corpus rejection}
 \label{sec:disjoint}
 
