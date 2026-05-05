@@ -1,0 +1,89 @@
+{
+  "years": [
+    2013,
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023
+  ],
+  "n_papers": 12036,
+  "fingerprint_bits": 512,
+  "bch_t": 30,
+  "round_trip_ok": true,
+  "round_trip_hamming": 0,
+  "drift_results": [
+    {
+      "drift_pct": 0.5,
+      "hamming": 1,
+      "within_bound": true,
+      "recovered": true,
+      "failure": null,
+      "fingerprint_s": 900.85
+    },
+    {
+      "drift_pct": 1.0,
+      "hamming": 3,
+      "within_bound": true,
+      "recovered": true,
+      "failure": null,
+      "fingerprint_s": 901.76
+    },
+    {
+      "drift_pct": 2.0,
+      "hamming": 4,
+      "within_bound": true,
+      "recovered": true,
+      "failure": null,
+      "fingerprint_s": 898.31
+    },
+    {
+      "drift_pct": 5.0,
+      "hamming": 14,
+      "within_bound": true,
+      "recovered": true,
+      "failure": null,
+      "fingerprint_s": 900.54
+    },
+    {
+      "drift_pct": 7.5,
+      "hamming": 21,
+      "within_bound": true,
+      "recovered": true,
+      "failure": null,
+      "fingerprint_s": 910.41
+    },
+    {
+      "drift_pct": 10.0,
+      "hamming": 24,
+      "within_bound": true,
+      "recovered": true,
+      "failure": null,
+      "fingerprint_s": 914.48
+    },
+    {
+      "drift_pct": 15.0,
+      "hamming": 36,
+      "within_bound": false,
+      "recovered": false,
+      "failure": "corpus drift exceeded threshold (t=30); decoding failed",
+      "fingerprint_s": 917.13
+    }
+  ],
+  "disjoint_year": 2024,
+  "disjoint_failed_as_expected": true,
+  "disjoint_hamming": 228,
+  "timings_ms": {
+    "fingerprint_corpus_s": 890.0214733749744,
+    "fe_gen_ms": 0.08975,
+    "fe_rep_ms": 0.293541,
+    "derive_seed_us": 0.667,
+    "ecdsa_sign_ms": 0.023125,
+    "ecdsa_verify_ms": 0.0545625
+  }
+}
