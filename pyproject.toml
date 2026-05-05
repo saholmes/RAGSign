@@ -88,6 +88,7 @@ ignore = ["E501"]   # line-length handled by formatter
 # variables.  FuzzyExtractFailure is a domain-specific exception name.
 "src/rag_sign/fuzzy_extractor.py" = ["N802", "N818"]
 "src/rag_sign/rag.py"             = ["N818"]
+"src/rag_sign/regulator.py"       = ["N818"]
 "tests/test_*.py"                 = ["N802", "N806"]
 "scripts/iacr_experiment.py"      = ["N803", "N806"]
 

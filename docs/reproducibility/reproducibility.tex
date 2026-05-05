@@ -309,6 +309,50 @@ Section~\ref{sec:threats}: it gives the deployment a clean rotation
 event well before the corpus drifts close enough to the cliff that
 MinHash variance or adversarial perturbation could push it over.
 
+\paragraph{Regulator authority and remote attestation.}  The
+reference implementation also exposes a regulator interface that
+externalises the rotation decision.  An external authority
+(regulator, auditor, compliance officer) holds an ECDSA P\nobreakdash-256
+keypair whose public half is registered with the deployment at
+construction time.  The authority can:
+
+\begin{itemize}
+  \item \textbf{Demand on-demand rotation} by issuing a signed
+        \texttt{RegulatorDirective} with action \texttt{ROTATE}.
+        The deployment verifies the directive against the registered
+        public key, checks the included nonce against an in-memory
+        replay set, checks the timestamp against a deployment-side
+        clock, and — if all four checks pass — invokes
+        \texttt{regenerate()} to mint a fresh signing key.
+  \item \textbf{Revoke the deployment outright} via action
+        \texttt{REVOKE}, which marks the system as
+        cryptographically dead: subsequent calls to
+        \texttt{query()} are refused until a fresh enrolment is
+        performed by an operator.
+  \item \textbf{Audit corpus integrity remotely} via a *secure
+        sketch*~\cite{dodis2008fuzzy}.  At enrolment the deployment
+        runs a *second* fuzzy\nobreakdash-extractor enrolment over
+        the same fingerprint, hands the resulting $R$ to the
+        regulator out\nobreakdash-of\nobreakdash-band, and keeps the
+        helper data locally.  Periodic audit is a
+        challenge\nobreakdash-response over HMAC\nobreakdash-SHA3-256:
+        the regulator picks a fresh challenge, the deployment
+        re\nobreakdash-fingerprints the live corpus and re\nobreakdash-derives
+        $R$ via the secure sketch (failing if drift exceeds the BCH
+        bound), then returns
+        $\mathrm{HMAC}_{R}(\mathit{challenge})$.  A successful
+        audit proves the live corpus has not drifted past the BCH
+        bound; an audit failure is itself the trigger the regulator
+        needs to issue a \texttt{ROTATE} directive.
+\end{itemize}
+
+The audit secret $R$ never lets the regulator forge a deployment
+signature: it is the output of a separate, independent
+fuzzy\nobreakdash-extractor enrolment, not the deployment's signing
+seed.  The two roles — \emph{signing} and \emph{being audited} —
+are cryptographically distinct even though they share the same
+underlying corpus fingerprint.
+
 \subsection{Disjoint corpus rejection}
 \label{sec:disjoint}
 

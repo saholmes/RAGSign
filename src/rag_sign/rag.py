@@ -31,6 +31,7 @@ retrieves, generates, and signs in one shot.
 
 from __future__ import annotations
 
+import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -44,6 +45,15 @@ from rag_sign.hsm import HSMBackend, InMemoryHSM
 from rag_sign.key_derivation import KeyMaterial, derive_signing_seed
 from rag_sign.llm import LLMBackend, assemble_prompt
 from rag_sign.lsh import fingerprint_corpus, hamming_distance
+from rag_sign.regulator import (
+    InvalidRegulatorDirective,
+    RegulatorAuditToken,
+    RegulatorAuthority,
+    RegulatorDirective,
+    _AuditState,
+    compute_audit_response,
+    verify_directive,
+)
 from rag_sign.signer import RagSigner, SignedMessage
 from rag_sign.vector_db import ChromaVectorDB
 
@@ -122,6 +132,8 @@ class RagSignSystem:
         hsm: HSMBackend | None = None,
         top_k: int = 5,
         drift_policy_bits: int | None = None,
+        regulator: RegulatorAuthority | None = None,
+        deployment_id: str = "default",
     ) -> None:
         """Configure backends and (optionally) a drift-policy threshold.
 
@@ -154,6 +166,17 @@ class RagSignSystem:
         self._hsm: HSMBackend = hsm or InMemoryHSM()
         self._top_k = top_k
         self._drift_policy_bits = drift_policy_bits
+        self._regulator = regulator
+        self._deployment_id = deployment_id
+        # Replay protection: every accepted regulator directive's nonce
+        # is added here and refused on subsequent submission.  In-memory
+        # only; persisting across restarts is the operator's job.
+        self._seen_nonces: set[bytes] = set()
+        # Per-regulator audit relationships, keyed by deployment_id (so
+        # a single deployment can serve audits to multiple regulators).
+        self._audit_states: dict[str, _AuditState] = {}
+        # Set when a REVOKE directive lands; subsequent query() refuses.
+        self._revoked = False
         self._state: _SystemState | None = None
 
     # ------------------------------------------------------------------
@@ -352,6 +375,150 @@ class RagSignSystem:
         self._state = _SystemState(signer=signer, bundle=bundle, w_enrol=w_new)
         return bundle
 
+    def regenerate_on_demand(
+        self,
+        chunks: Sequence[Chunk],
+        *,
+        reason: str = "",
+        model_hash: bytes | None = None,
+    ) -> EnrolmentBundle:
+        """Admin-path key rotation.
+
+        Equivalent to :meth:`regenerate` but takes an explicit
+        ``reason`` string so the rotation event can be audit-logged
+        with operator intent.  Use this when a human operator
+        decides to rotate (scheduled rotation, suspected
+        compromise, …) without waiting for a regulator directive.
+
+        For *regulator-authorised* rotation use
+        :meth:`enforce_regulator_directive` — it carries the
+        cryptographic proof that the regulator authorised the
+        rotation.
+        """
+        del reason  # logged by the caller; not security-relevant here
+        return self.regenerate(chunks, model_hash=model_hash)
+
+    # ------------------------------------------------------------------
+    # Regulator authority + secure-sketch audit
+    # ------------------------------------------------------------------
+
+    def issue_audit_token(
+        self, *, regulator_deployment_id: str | None = None
+    ) -> RegulatorAuditToken:
+        """Issue a fresh audit token at enrolment time.
+
+        The deployment runs a *second* fuzzy-extractor enrolment over
+        the same corpus fingerprint, keeps the helper data locally,
+        and returns the resulting ``R`` (the audit secret) for
+        out-of-band delivery to the regulator.  The regulator stores
+        the returned token; the deployment stores only the helper.
+
+        Multiple audit tokens can co-exist (e.g. one per regulator).
+        Each is keyed by ``regulator_deployment_id`` (defaults to the
+        deployment's own ``deployment_id`` for the single-regulator
+        case).
+        """
+        state = self._require_state()
+        key = regulator_deployment_id or self._deployment_id
+        r_audit, helper_audit = fe_gen(state.w_enrol)
+        self._audit_states[key] = _AuditState(
+            deployment_id=key, helper=helper_audit
+        )
+        return RegulatorAuditToken(
+            deployment_id=key,
+            audit_secret=r_audit,
+            issued_at=int(time.time()),
+        )
+
+    def respond_to_audit_challenge(
+        self,
+        chunks: Sequence[Chunk],
+        challenge: bytes,
+        *,
+        regulator_deployment_id: str | None = None,
+    ) -> bytes:
+        """Generate the HMAC proof for a regulator's audit challenge.
+
+        Re-fingerprints the live corpus, recovers ``R`` via the stored
+        helper (raises :class:`FuzzyExtractFailure` if drift exceeds
+        the BCH bound), and returns
+        ``HMAC-SHA3-256(R, challenge)`` for the regulator to verify.
+
+        A failure here is itself the audit signal: if the live corpus
+        cannot reproduce the audit ``R``, the regulator should issue
+        a ROTATE directive.
+        """
+        self._require_state()  # must be ready
+        key = regulator_deployment_id or self._deployment_id
+        if key not in self._audit_states:
+            raise RuntimeError(
+                f"no audit token has been issued for {key!r}; "
+                f"call issue_audit_token() first"
+            )
+        helper = self._audit_states[key].helper
+        w_now = fingerprint_corpus([c.text for c in chunks])
+        r_audit = fe_rep(w_now, helper)
+        return compute_audit_response(r_audit, challenge)
+
+    def enforce_regulator_directive(
+        self,
+        directive: RegulatorDirective,
+        signature: bytes,
+        chunks: Sequence[Chunk],
+        *,
+        now: int | None = None,
+    ) -> EnrolmentBundle | None:
+        """Verify and execute a signed regulator directive.
+
+        Failure modes (in order):
+
+        * No regulator configured at construction — :class:`RuntimeError`.
+        * ECDSA signature does not verify — :class:`InvalidRegulatorDirective`.
+        * Directive's ``deployment_id`` does not match ours — same.
+        * Directive expired — same.
+        * Nonce already seen (replay) — same.
+        * Unknown action — same.
+
+        On success, performs the action:
+
+        * ``"ROTATE"`` returns the new :class:`EnrolmentBundle`.
+        * ``"REVOKE"`` marks the deployment as revoked (subsequent
+          :meth:`query` calls refuse) and returns ``None``.
+        """
+        if self._regulator is None:
+            raise RuntimeError("no regulator authority configured")
+
+        if not verify_directive(directive, signature, self._regulator):
+            raise InvalidRegulatorDirective(
+                "ECDSA signature on directive did not verify against "
+                "the registered regulator authority"
+            )
+        if directive.deployment_id != self._deployment_id:
+            raise InvalidRegulatorDirective(
+                f"directive targets {directive.deployment_id!r}, "
+                f"this deployment is {self._deployment_id!r}"
+            )
+        wall = int(now if now is not None else time.time())
+        if wall > directive.expires_at:
+            raise InvalidRegulatorDirective(
+                f"directive expired at {directive.expires_at} "
+                f"(now {wall})"
+            )
+        if directive.nonce in self._seen_nonces:
+            raise InvalidRegulatorDirective(
+                "directive nonce has already been seen — replay refused"
+            )
+        self._seen_nonces.add(directive.nonce)
+
+        if directive.action == "ROTATE":
+            return self.regenerate(chunks)
+        if directive.action == "REVOKE":
+            self._revoked = True
+            return None
+        raise InvalidRegulatorDirective(
+            f"unknown directive action {directive.action!r}"
+        )
+
     # ------------------------------------------------------------------
     # Working API
     # ------------------------------------------------------------------
@@ -365,6 +532,11 @@ class RagSignSystem:
         what makes the answer attributable to a specific deployment.
         """
         state = self._require_state()
+        if self._revoked:
+            raise RuntimeError(
+                "deployment has been revoked by regulator directive; "
+                "queries are refused until re-enrolment"
+            )
         retrieved = self._db.query(question, top_k=self._top_k)
         contexts = [r.chunk.text for r in retrieved]
         prompt = assemble_prompt(question, contexts)
