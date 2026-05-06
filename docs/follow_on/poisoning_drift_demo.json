@@ -1,7 +1,12 @@
 {
   "model": "gpt2",
   "n_parameters": 124439808,
-  "fingerprint_bits": 512,
+  "fingerprint_bits": 1024,
+  "seeds": [
+    2026,
+    2027,
+    2028
+  ],
   "lr": 5e-05,
   "device": "mps",
   "n_probes": 10,
@@ -26,43 +31,168 @@
   "trials": [
     {
       "steps": 5,
-      "coherent_hamming": 6,
-      "coherent_hamming_pct": 1.17,
-      "coherent_finetune_s": 1.0,
-      "contradictory_hamming": 7,
-      "contradictory_hamming_pct": 1.37,
-      "contradictory_finetune_s": 1.4,
-      "drift_ratio": 1.17
+      "per_seed": [
+        {
+          "seed": 2026,
+          "coherent_hamming": 10,
+          "coherent_hamming_pct": 0.98,
+          "contradictory_hamming": 13,
+          "contradictory_hamming_pct": 1.27
+        },
+        {
+          "seed": 2027,
+          "coherent_hamming": 4,
+          "coherent_hamming_pct": 0.39,
+          "contradictory_hamming": 15,
+          "contradictory_hamming_pct": 1.46
+        },
+        {
+          "seed": 2028,
+          "coherent_hamming": 8,
+          "coherent_hamming_pct": 0.78,
+          "contradictory_hamming": 12,
+          "contradictory_hamming_pct": 1.17
+        }
+      ],
+      "coherent_mean": 7.33,
+      "coherent_std": 2.49,
+      "contradictory_mean": 13.33,
+      "contradictory_std": 1.25,
+      "drift_ratio_mean": 1.819,
+      "seeds_with_contra_gt_coh": 3,
+      "seeds_total": 3
     },
     {
       "steps": 25,
-      "coherent_hamming": 20,
-      "coherent_hamming_pct": 3.91,
-      "coherent_finetune_s": 4.2,
-      "contradictory_hamming": 22,
-      "contradictory_hamming_pct": 4.3,
-      "contradictory_finetune_s": 3.7,
-      "drift_ratio": 1.1
+      "per_seed": [
+        {
+          "seed": 2026,
+          "coherent_hamming": 42,
+          "coherent_hamming_pct": 4.1,
+          "contradictory_hamming": 39,
+          "contradictory_hamming_pct": 3.81
+        },
+        {
+          "seed": 2027,
+          "coherent_hamming": 41,
+          "coherent_hamming_pct": 4.0,
+          "contradictory_hamming": 21,
+          "contradictory_hamming_pct": 2.05
+        },
+        {
+          "seed": 2028,
+          "coherent_hamming": 39,
+          "coherent_hamming_pct": 3.81,
+          "contradictory_hamming": 29,
+          "contradictory_hamming_pct": 2.83
+        }
+      ],
+      "coherent_mean": 40.67,
+      "coherent_std": 1.25,
+      "contradictory_mean": 29.67,
+      "contradictory_std": 7.36,
+      "drift_ratio_mean": 0.73,
+      "seeds_with_contra_gt_coh": 0,
+      "seeds_total": 3
     },
     {
       "steps": 100,
-      "coherent_hamming": 20,
-      "coherent_hamming_pct": 3.91,
-      "coherent_finetune_s": 15.3,
-      "contradictory_hamming": 23,
-      "contradictory_hamming_pct": 4.49,
-      "contradictory_finetune_s": 14.9,
-      "drift_ratio": 1.15
+      "per_seed": [
+        {
+          "seed": 2026,
+          "coherent_hamming": 39,
+          "coherent_hamming_pct": 3.81,
+          "contradictory_hamming": 50,
+          "contradictory_hamming_pct": 4.88
+        },
+        {
+          "seed": 2027,
+          "coherent_hamming": 43,
+          "coherent_hamming_pct": 4.2,
+          "contradictory_hamming": 34,
+          "contradictory_hamming_pct": 3.32
+        },
+        {
+          "seed": 2028,
+          "coherent_hamming": 51,
+          "coherent_hamming_pct": 4.98,
+          "contradictory_hamming": 42,
+          "contradictory_hamming_pct": 4.1
+        }
+      ],
+      "coherent_mean": 44.33,
+      "coherent_std": 4.99,
+      "contradictory_mean": 42.0,
+      "contradictory_std": 6.53,
+      "drift_ratio_mean": 0.947,
+      "seeds_with_contra_gt_coh": 1,
+      "seeds_total": 3
     },
     {
       "steps": 500,
-      "coherent_hamming": 20,
-      "coherent_hamming_pct": 3.91,
-      "coherent_finetune_s": 76.3,
-      "contradictory_hamming": 23,
-      "contradictory_hamming_pct": 4.49,
-      "contradictory_finetune_s": 72.0,
-      "drift_ratio": 1.15
+      "per_seed": [
+        {
+          "seed": 2026,
+          "coherent_hamming": 42,
+          "coherent_hamming_pct": 4.1,
+          "contradictory_hamming": 49,
+          "contradictory_hamming_pct": 4.79
+        },
+        {
+          "seed": 2027,
+          "coherent_hamming": 50,
+          "coherent_hamming_pct": 4.88,
+          "contradictory_hamming": 37,
+          "contradictory_hamming_pct": 3.61
+        },
+        {
+          "seed": 2028,
+          "coherent_hamming": 38,
+          "coherent_hamming_pct": 3.71,
+          "contradictory_hamming": 37,
+          "contradictory_hamming_pct": 3.61
+        }
+      ],
+      "coherent_mean": 43.33,
+      "coherent_std": 4.99,
+      "contradictory_mean": 41.0,
+      "contradictory_std": 5.66,
+      "drift_ratio_mean": 0.946,
+      "seeds_with_contra_gt_coh": 1,
+      "seeds_total": 3
+    },
+    {
+      "steps": 1000,
+      "per_seed": [
+        {
+          "seed": 2026,
+          "coherent_hamming": 43,
+          "coherent_hamming_pct": 4.2,
+          "contradictory_hamming": 41,
+          "contradictory_hamming_pct": 4.0
+        },
+        {
+          "seed": 2027,
+          "coherent_hamming": 66,
+          "coherent_hamming_pct": 6.45,
+          "contradictory_hamming": 29,
+          "contradictory_hamming_pct": 2.83
+        },
+        {
+          "seed": 2028,
+          "coherent_hamming": 45,
+          "coherent_hamming_pct": 4.39,
+          "contradictory_hamming": 38,
+          "contradictory_hamming_pct": 3.71
+        }
+      ],
+      "coherent_mean": 51.33,
+      "coherent_std": 10.4,
+      "contradictory_mean": 36.0,
+      "contradictory_std": 5.1,
+      "drift_ratio_mean": 0.701,
+      "seeds_with_contra_gt_coh": 0,
+      "seeds_total": 3
     }
   ]
 }

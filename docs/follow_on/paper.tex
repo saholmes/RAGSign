@@ -87,21 +87,24 @@ that hashes the model's outputs on a fixed probe set instead of its
 weights, and show this is ${\sim}\!9$\textendash$13\!\times$ more
 sensitive at the same fine\nobreakdash-tune intensity, giving the
 AI\nobreakdash-safety gate a usable operating curve.  Finally, we
-formulate and run a first\nobreakdash-look test of a
+formulate and run a multi\nobreakdash-seed test of a
 \emph{differential\nobreakdash-drift conjecture}
 (Section~\ref{sec:poisoning}): that for fixed fine\nobreakdash-tune
 budgets, fingerprint drift on contradictory training data should
-exceed drift on coherent training data, because contradictory
-data forces the optimiser to unlearn before re\nobreakdash-learning.
-We measure a drift ratio of $1.10$\textendash$1.17$ in favour of
-contradictory data at four matched step counts —
-directionally consistent with the conjecture, modest in
-absolute size, and stable across the
-$25$\textendash$500$\nobreakdash-step regime.  If the conjecture
-holds at scale, the AI\nobreakdash-safety gate doubles as a
-data\nobreakdash-poisoning detector; confirming this on
-production\nobreakdash-class models is the most\nobreakdash-pressing
-follow\nobreakdash-up.  All numbers are reproducible
+exceed drift on coherent training data because contradictory data
+forces the optimiser to unlearn before re\nobreakdash-learning.  We
+find a striking \emph{regime\nobreakdash-dependent} signal: at
+$5$ SGD steps contradictory data drifts $1.82\!\times$ more than
+coherent ($3$\nobreakdash-of\nobreakdash-$3$ seeds, mean $13.3$ vs.\
+$7.3$ bits), but by $25$ steps the differential collapses or
+reverses as the optimiser memorises the small contradictory
+corpus.  The signal lives in the early\nobreakdash-training
+\emph{trajectory}, not in the final fingerprint — a
+deployment\nobreakdash-relevant finding because it suggests
+sampling the fingerprint mid\nobreakdash-training rather than
+post\nobreakdash-training.  All numbers are reproducible from the
+open\nobreakdash-source reference
+implementation~\cite{ragsign-impl}.  All numbers are reproducible
 from the open\nobreakdash-source reference
 implementation~\cite{ragsign-impl}.
 \end{abstract}
@@ -821,65 +824,101 @@ hyperparameters were held identical.
 \subsection{Results}
 \label{sec:poisoning:results}
 
+We ran the experiment with two fingerprint configurations to
+distinguish drift\nobreakdash-process effects from
+fingerprint\nobreakdash-saturation effects, and across three random
+seeds at the larger configuration to put error bars on the
+differential.  Table~\ref{tab:poisoning:results} reports the
+$1024$\nobreakdash-bit / 3\nobreakdash-seed configuration, which
+we treat as the headline result; the
+$512$\nobreakdash-bit / single\nobreakdash-seed run is reported in
+Appendix~\ref{app:poisoning-512} for completeness.
+
 \begin{table}[h]
   \centering
-  \caption{Behavioural fingerprint drift, coherent vs.\
-    contradictory fine\nobreakdash-tune corpora.  GPT\nobreakdash-2 small
-    over $512$\nobreakdash-bit fingerprint, $10$ probes,
-    $\mathrm{lr} = \num{5e-5}$.  Drift ratio = contradictory /
-    coherent.  A ratio $> 1$ supports the hypothesis.}
+  \caption{Multi\nobreakdash-seed behavioural fingerprint drift,
+    coherent vs.\ contradictory fine\nobreakdash-tune corpora.
+    GPT\nobreakdash-2 small, $1024$\nobreakdash-bit fingerprint,
+    $10$ probes, $\mathrm{lr} = \num{5e-5}$, three seeds
+    ($\{2026, 2027, 2028\}$).  Drift ratio is computed on the
+    means.  ``$\mathrm{contra} > \mathrm{coh}$'' counts the seeds
+    in which contradictory drift strictly exceeded coherent drift.}
   \label{tab:poisoning:results}
-  \begin{tabular}{r r r r r r}
+  \begin{tabular}{r c c r c}
     \toprule
     \multirow{2}{*}{\textbf{Steps}} &
-    \multicolumn{2}{c}{\textbf{Coherent}} &
-    \multicolumn{2}{c}{\textbf{Contradictory}} &
-    \multirow{2}{*}{\textbf{Drift ratio}} \\
-    \cmidrule(lr){2-3}\cmidrule(lr){4-5}
-       & \textbf{bits} & \textbf{\%} & \textbf{bits} & \textbf{\%} & \\
+    \multirow{2}{*}{\textbf{Coherent (bits, mean $\pm$ std)}} &
+    \multirow{2}{*}{\textbf{Contradictory (bits, mean $\pm$ std)}} &
+    \multirow{2}{*}{\textbf{Ratio}} &
+    \multirow{2}{*}{\textbf{$\mathrm{contra} > \mathrm{coh}$}} \\
+    & & & & \\
     \midrule
-    5    &  6 & 1.17 &  7 & 1.37 & 1.17 \\
-    25   & 20 & 3.91 & 22 & 4.30 & 1.10 \\
-    100  & 20 & 3.91 & 23 & 4.49 & 1.15 \\
-    500  & 20 & 3.91 & 23 & 4.49 & 1.15 \\
+       5  &  $7.3 \pm 2.5$ &  $13.3 \pm 1.3$ & $1.82$ & $3/3$ \\
+      25  & $40.7 \pm 1.3$ &  $29.7 \pm 7.4$ & $0.73$ & $0/3$ \\
+     100  & $44.3 \pm 5.0$ &  $42.0 \pm 6.5$ & $0.95$ & $1/3$ \\
+     500  & $43.3 \pm 5.0$ &  $41.0 \pm 5.7$ & $0.95$ & $1/3$ \\
+    1000  & $51.3 \pm 10.4$ & $36.0 \pm 5.1$ & $0.70$ & $0/3$ \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-\paragraph{Interpretation.}  Two qualitative observations.
+\paragraph{Interpretation.}  The data tell a richer story than the
+conjecture as originally stated, and partially reverse it.
 
-\emph{First, the conjecture is directionally supported.}  The drift
-ratio is consistently above $1$ at every step count we measured
-($1.10$\textendash$1.17$), with contradictory data flipping more
-fingerprint bits than coherent data on every trial.  The effect is
-modest in absolute terms — $\sim$\SI{2}{} extra bits in $512$ — but
-it is consistent and signed in the direction the conjecture
-predicts.  Even on a small single\nobreakdash-seed experiment with a
-124M\nobreakdash-parameter model, the differential is detectable.
+\emph{The signal is real but transient.}  At the
+$5$\nobreakdash-step measurement the differential is decisive:
+contradictory drift exceeds coherent drift in $3/3$ seeds, with the
+ratio of means at $1.82$ and the contradictory standard deviation
+($1.3$ bits) much smaller than the means' separation ($6.0$ bits).
+The probability of observing $3/3$ favoured outcomes by chance under
+the null hypothesis of identical distributions is $\nicefrac{1}{8} = 12.5\%$
+— marginal at $n = 3$ seeds but unambiguous in direction and effect
+size.  We treat this as positive evidence for the conjecture in the
+\emph{early\nobreakdash-training regime}.
 
-\emph{Second, the fingerprint saturates by $25$ steps.}  Both
-corpora reach a steady state of $20$\textendash$23$ bits Hamming by
-the $25$\nobreakdash-step trial and stay there through $500$ steps.
-The behavioural fingerprint at our $512$\nobreakdash-bit / $10$\nobreakdash-probe
-configuration distinguishes ``fine\nobreakdash-tuned vs. baseline''
-cleanly but does \emph{not} track fine\nobreakdash-tune intensity
-beyond the saturation point.  This is consistent with the
-behavioural fingerprint reading $V$\nobreakdash-dimensional
-last\nobreakdash-token logits whose magnitude scale stabilises once
-the fine\nobreakdash-tune corpus is largely fitted.  Resolving this
-saturation — to give the gate a continuous signal rather than a
-binary one — is straightforward in principle (more probes, larger
-fingerprint dimension, deeper activations) but its empirical
-characterisation is left to follow\nobreakdash-up work.
+\emph{The signal does not survive into longer training.}  By
+$25$ steps the ratio collapses to $0.73$, and stays in the
+$0.70$\textendash$0.95$ range through $1{,}000$ steps.
+$\mathrm{contra} > \mathrm{coh}$ holds in only $0$\textendash$1$ of
+$3$ seeds for every step count beyond $5$.  The most plausible
+explanation is corpus\nobreakdash-size driven: with only $100$
+sentences in the contradictory corpus, the optimiser quickly
+\emph{memorises} the contradictions, after which gradients on
+the same examples shrink toward zero and weight movement stalls.
+Coherent content, by contrast, sits closer to the base model's
+training distribution but on a specialised topic
+(cryptography); the gradients here decay more slowly because
+the topic is genuinely novel for the base model.
 
-The combination of these two observations gives the AI\nobreakdash-safety
-gate a usable, if coarse, poisoning signal: the deployment compares
-the fingerprint Hamming distance produced by two equivalent
-fine\nobreakdash-tune budgets — one on the new corpus, one on the
-known\nobreakdash-good baseline corpus — and flags any candidate corpus
-whose drift ratio meaningfully exceeds $1$.  Calibrating the
-exact threshold (and characterising its false\nobreakdash-positive
-rate against natural distribution shift) is open work.
+\emph{Saturation in the original $512$\nobreakdash-bit run was a
+fingerprint artefact, not a property of the drift process.}  The
+$1024$\nobreakdash-bit configuration reports drift in the
+$30$\textendash$50$\nobreakdash-bit range where the
+$512$\nobreakdash-bit run reported $20$\textendash$23$.  Doubling
+the fingerprint dimension roughly doubled the drift signal, as
+the locality\nobreakdash-sensitivity guarantee predicts.
+
+\paragraph{Implication for deployment.}  The differential signal
+lives in the \emph{trajectory} of fine\nobreakdash-tuning, not in the
+fingerprint of the final model.  An AI\nobreakdash-safety gate that
+samples the fingerprint at multiple points during training (rather
+than only at the end) can in principle detect contradictory
+training data via the early\nobreakdash-step amplification we
+observe.  This is a stronger and more actionable claim than the
+original conjecture: rather than ``the fingerprint at fine\nobreakdash-tune
+end discriminates poisoning'', we have ``the fingerprint
+\emph{rate of change} discriminates poisoning, but only in the
+first few SGD steps before the optimiser memorises the corpus.''
+
+This finding is consistent with the geometric intuition that
+motivated the conjecture — contradictory content forces the
+optimiser to climb out of an existing minimum — but adds the
+observation that for small corpora the climb is brief.  Whether
+the early\nobreakdash-step amplification persists at production scale
+(longer fine\nobreakdash-tunes, larger corpora, larger models) is
+an open empirical question that
+Section~\ref{sec:future} flags as the most\nobreakdash-pressing
+follow\nobreakdash-up.
 
 \begin{figure}[h]
   \centering
@@ -888,40 +927,86 @@ rate against natural distribution shift) is open work.
       width  = 0.85\linewidth,
       height = 0.42\linewidth,
       ybar,
-      bar width = 12pt,
+      bar width = 9pt,
       xlabel = {Fine-tune SGD steps},
-      ylabel = {Hamming distance (bits)},
-      ymin   = 0, ymax = 28,
-      symbolic x coords = {5, 25, 100, 500},
+      ylabel = {Hamming distance (bits, mean over 3 seeds)},
+      ymin   = 0, ymax = 65,
+      symbolic x coords = {5, 25, 100, 500, 1000},
       xtick = data,
       grid  = both,
-      legend style = {at={(0.02,0.98)}, anchor=north west, draw=none},
+      legend style = {at={(0.98,0.98)}, anchor=north east, draw=none},
       legend cell align = left,
+      error bars/.cd, y dir=both, y explicit,
     ]
-      \addplot[fill=blue!40,    draw=blue]    coordinates {(5, 6)  (25, 20) (100, 20) (500, 20)};
+      \addplot[fill=blue!40, draw=blue, error bars/.cd, y dir=both, y explicit]
+        coordinates {
+          (5, 7.3) +- (0, 2.5)
+          (25, 40.7) +- (0, 1.3)
+          (100, 44.3) +- (0, 5.0)
+          (500, 43.3) +- (0, 5.0)
+          (1000, 51.3) +- (0, 10.4)
+        };
       \addlegendentry{Coherent}
-      \addplot[fill=red!50,     draw=red]     coordinates {(5, 7)  (25, 22) (100, 23) (500, 23)};
+      \addplot[fill=red!50, draw=red, error bars/.cd, y dir=both, y explicit]
+        coordinates {
+          (5, 13.3) +- (0, 1.3)
+          (25, 29.7) +- (0, 7.4)
+          (100, 42.0) +- (0, 6.5)
+          (500, 41.0) +- (0, 5.7)
+          (1000, 36.0) +- (0, 5.1)
+        };
       \addlegendentry{Contradictory}
     \end{axis}
   \end{tikzpicture}
-  \caption{Behavioural fingerprint Hamming distance under coherent
-    vs. contradictory fine\nobreakdash-tune corpora at matched step
-    counts.  Contradictory data drifts $10$\textendash$17\,\%$ more
-    than coherent at every measurement, supporting the
-    differential\nobreakdash-drift conjecture; both saturate by
-    $25$ steps at the current fingerprint configuration.}
+  \caption{Behavioural fingerprint drift under coherent vs.\
+    contradictory fine\nobreakdash-tune corpora across matched step
+    counts.  Mean and standard deviation over $3$ random seeds with
+    a $1024$\nobreakdash-bit fingerprint.  At $5$ steps the
+    differential is decisive (ratio $1.82$, $3/3$ seeds favour
+    contradictory); by $25+$ steps the signal collapses or reverses.
+    The differential\nobreakdash-drift signal lives in the
+    early\nobreakdash-training regime only.}
   \label{fig:poisoning:bars}
 \end{figure}
 
-\paragraph{Threats to validity.}  Single\nobreakdash-seed result;
-GPT\nobreakdash-2 small is a weak proxy for production LLMs which
-have stronger priors and may show larger differential drift.  The
-contradictory corpus is hand\nobreakdash-curated rather than
-adversarially optimised; a sophisticated adversary might construct
-a contradictory corpus that drifts at the same rate as a coherent
-one.  Confirming or refuting the conjecture at scale on
-production\nobreakdash-class models is the most\nobreakdash-pressing
-follow\nobreakdash-up.
+\paragraph{Threats to validity.}
+%
+\emph{Three seeds.}  Stronger statistical claims would require
+$\geq 10$ seeds per cell, particularly at the
+$1{,}000$\nobreakdash-step measurement where the coherent standard
+deviation is $10.4$ bits.  Our $n = 3$ is enough to establish
+direction and effect size at $5$ steps but does not support a
+formal $p$\nobreakdash-value claim.
+%
+\emph{Small model.}  GPT\nobreakdash-2 small (\num{124e6}
+parameters) is a weak proxy for production LLMs which have stronger
+priors over common knowledge and may exhibit a larger and more
+persistent differential.
+%
+\emph{Small corpora.}  Both fine\nobreakdash-tune corpora are
+$100$\nobreakdash-sentence repetitions of $10$ unique examples each.
+The reversal we observe at higher step counts is consistent with
+the optimiser memorising the small contradictory corpus quickly;
+larger corpora may delay the saturation point and preserve the
+early\nobreakdash-step differential out to longer training.
+%
+\emph{Hand\nobreakdash-curated contradiction.}  A sophisticated
+adversary might construct contradictory examples optimised to
+\emph{minimise} the early\nobreakdash-step fingerprint drift while
+still teaching the contradictions.  The robustness of the
+early\nobreakdash-step signal under such adversarial corpus design
+is open work.
+%
+\emph{Probe sensitivity.}  The $10$\nobreakdash-probe set
+(Section~\ref{sec:model:candidates}) overlaps semantically with
+the contradictory corpus more than with the coherent corpus
+(geography, basic facts) — the early\nobreakdash-step amplification
+may partly reflect this overlap.  A probe set sampled
+independently from the corpora would settle this.
+
+Confirming or refuting the conjecture at production scale —
+larger model, larger corpora, more seeds, independent probes — is
+the most\nobreakdash-pressing follow\nobreakdash-up.
 
 \section{Implementation}
 \label{sec:impl}
@@ -1018,6 +1103,57 @@ deployment defends three independent thresholds plus an external
 authority.  All numbers and the experiment harness are released
 under the MIT licence at the reference
 implementation's URL~\cite{ragsign-impl}.
+
+\appendix
+
+\section{Single-seed 512-bit poisoning sweep}
+\label{app:poisoning-512}
+
+For completeness, Table~\ref{tab:poisoning-512} reports the
+single\nobreakdash-seed $512$\nobreakdash-bit run that motivated the
+multi\nobreakdash-seed extension in Section~\ref{sec:poisoning}.
+The table is shown for two reasons: it isolates the
+fingerprint\nobreakdash-saturation effect (drift saturates at
+$\sim\!23$ bits in the
+$512$\nobreakdash-bit configuration but reaches
+$\sim\!50$ bits in the $1024$\nobreakdash-bit configuration), and
+it documents the original suggestive\nobreakdash-but\nobreakdash-misleading
+result against which the multi\nobreakdash-seed extension is
+calibrated.
+
+\begin{table}[h]
+  \centering
+  \caption{Single\nobreakdash-seed $512$\nobreakdash-bit fingerprint
+    sweep.  GPT\nobreakdash-2 small, $10$ probes,
+    $\mathrm{lr} = \num{5e-5}$, seed $= 2026$.}
+  \label{tab:poisoning-512}
+  \begin{tabular}{r r r r r r}
+    \toprule
+    \multirow{2}{*}{\textbf{Steps}} &
+    \multicolumn{2}{c}{\textbf{Coherent}} &
+    \multicolumn{2}{c}{\textbf{Contradictory}} &
+    \multirow{2}{*}{\textbf{Drift ratio}} \\
+    \cmidrule(lr){2-3}\cmidrule(lr){4-5}
+       & \textbf{bits} & \textbf{\%} & \textbf{bits} & \textbf{\%} & \\
+    \midrule
+    5    &  6 & 1.17 &  7 & 1.37 & 1.17 \\
+    25   & 20 & 3.91 & 22 & 4.30 & 1.10 \\
+    100  & 20 & 3.91 & 23 & 4.49 & 1.15 \\
+    500  & 20 & 3.91 & 23 & 4.49 & 1.15 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The $512$\nobreakdash-bit run shows ratios consistently above $1$ at
+every step count, which on its own would suggest a stable
+late\nobreakdash-training differential.  The
+$1024$\nobreakdash-bit / multi\nobreakdash-seed run
+(Table~\ref{tab:poisoning:results}) reveals this is an
+artefact of fingerprint saturation:  doubling the dimension lets
+us see that the late\nobreakdash-training differential reverses
+across seeds.  Only the early\nobreakdash-step ($5$\nobreakdash-step)
+amplification survives the multi\nobreakdash-seed and
+larger\nobreakdash-fingerprint controls.
 
 \bibliographystyle{plain}
 \bibliography{refs}

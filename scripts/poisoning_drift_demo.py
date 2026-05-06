@@ -181,6 +181,14 @@ def main() -> int:
     parser.add_argument(
         "--steps", type=int, nargs="+", default=[5, 25, 100, 500],
     )
+    parser.add_argument(
+        "--seeds", type=int, nargs="+", default=[2026],
+        help="random seeds to average over (one trial per seed)",
+    )
+    parser.add_argument(
+        "--fp-dim", type=int, default=DEFAULT_FP_DIM,
+        help="behavioural fingerprint dimension; larger may delay saturation",
+    )
     parser.add_argument("--lr", type=float, default=5e-5)
     args = parser.parse_args()
 
@@ -196,7 +204,7 @@ def main() -> int:
     print("Computing baseline behavioural fingerprint …")
     t0 = time.perf_counter()
     fp_base = fingerprint_behavioral(
-        base, tokenizer, device=device, dim=DEFAULT_FP_DIM
+        base, tokenizer, device=device, dim=args.fp_dim
     )
     print(f"  {len(fp_base)*8} bits in {time.perf_counter() - t0:.1f}s")
 
@@ -204,6 +212,7 @@ def main() -> int:
         "model": args.model,
         "n_parameters": sum(p.numel() for p in base.parameters()),
         "fingerprint_bits": len(fp_base) * 8,
+        "seeds": list(args.seeds),
         "lr": args.lr,
         "device": str(device),
         "n_probes": len(_PROBES),
@@ -217,45 +226,65 @@ def main() -> int:
     }
 
     for n_steps in args.steps:
-        print(f"\n--- {n_steps} fine-tune steps ---")
-        trial: dict = {"steps": n_steps}
-        for label, corpus in [
-            ("coherent",      COHERENT_CORPUS),
-            ("contradictory", CONTRADICTORY_CORPUS),
-        ]:
-            model = AutoModelForCausalLM.from_pretrained(args.model)
-            t0 = time.perf_counter()
-            _finetune_corpus(
-                model, tokenizer, corpus, n_steps,
-                device=device, lr=args.lr, seed=2026,
-            )
-            ft_seconds = time.perf_counter() - t0
-            t0 = time.perf_counter()
-            fp = fingerprint_behavioral(
-                model, tokenizer, device=device, dim=DEFAULT_FP_DIM
-            )
-            fp_seconds = time.perf_counter() - t0
-            h = hamming_distance(fp_base, fp)
-            h_pct = h * 100.0 / (len(fp_base) * 8)
-            print(
-                f"  {label:<14}  hamming = {h:>3} bits ({h_pct:5.2f}%)   "
-                f"finetune {ft_seconds:.0f}s   fingerprint {fp_seconds:.0f}s"
-            )
-            trial[f"{label}_hamming"] = h
-            trial[f"{label}_hamming_pct"] = round(h_pct, 2)
-            trial[f"{label}_finetune_s"] = round(ft_seconds, 1)
-            del model
-            if device.type == "mps":
-                torch.mps.empty_cache()
-        # The headline number: drift ratio (contradictory : coherent).
-        if trial["coherent_hamming"] > 0:
-            trial["drift_ratio"] = round(
-                trial["contradictory_hamming"] / trial["coherent_hamming"], 2
+        print(f"\n--- {n_steps} fine-tune steps "
+              f"({len(args.seeds)} seed(s)) ---")
+        trial: dict = {"steps": n_steps, "per_seed": []}
+        coh_hammings: list[int] = []
+        con_hammings: list[int] = []
+        for seed in args.seeds:
+            seed_record: dict = {"seed": seed}
+            for label, corpus in [
+                ("coherent",      COHERENT_CORPUS),
+                ("contradictory", CONTRADICTORY_CORPUS),
+            ]:
+                model = AutoModelForCausalLM.from_pretrained(args.model)
+                t0 = time.perf_counter()
+                _finetune_corpus(
+                    model, tokenizer, corpus, n_steps,
+                    device=device, lr=args.lr, seed=seed,
+                )
+                ft_seconds = time.perf_counter() - t0
+                fp = fingerprint_behavioral(
+                    model, tokenizer, device=device, dim=args.fp_dim
+                )
+                h = hamming_distance(fp_base, fp)
+                h_pct = h * 100.0 / (len(fp_base) * 8)
+                print(
+                    f"  seed={seed:<6} {label:<14}  hamming = {h:>3} bits "
+                    f"({h_pct:5.2f}%)   ({ft_seconds:.0f}s)"
+                )
+                seed_record[f"{label}_hamming"] = h
+                seed_record[f"{label}_hamming_pct"] = round(h_pct, 2)
+                if label == "coherent":
+                    coh_hammings.append(h)
+                else:
+                    con_hammings.append(h)
+                del model
+                if device.type == "mps":
+                    torch.mps.empty_cache()
+            trial["per_seed"].append(seed_record)
+
+        # Aggregate statistics across seeds.
+        from statistics import fmean, pstdev
+        trial["coherent_mean"]      = round(fmean(coh_hammings), 2)
+        trial["coherent_std"]       = round(pstdev(coh_hammings), 2)
+        trial["contradictory_mean"] = round(fmean(con_hammings), 2)
+        trial["contradictory_std"]  = round(pstdev(con_hammings), 2)
+        if trial["coherent_mean"] > 0:
+            trial["drift_ratio_mean"] = round(
+                trial["contradictory_mean"] / trial["coherent_mean"], 3
             )
         else:
-            trial["drift_ratio"] = None
+            trial["drift_ratio_mean"] = None
+        # Sign-test summary: how often is contra > coh across seeds?
+        n_favoured = sum(1 for c, k in zip(con_hammings, coh_hammings) if c > k)
+        trial["seeds_with_contra_gt_coh"] = n_favoured
+        trial["seeds_total"] = len(args.seeds)
         print(
-            f"  drift ratio (contra/coherent) = {trial['drift_ratio']}"
+            f"  -> coherent     : {trial['coherent_mean']:.1f} ± {trial['coherent_std']:.1f}\n"
+            f"  -> contradictory: {trial['contradictory_mean']:.1f} ± {trial['contradictory_std']:.1f}\n"
+            f"  -> ratio        : {trial['drift_ratio_mean']}\n"
+            f"  -> contra > coh in {n_favoured}/{len(args.seeds)} seeds"
         )
         results["trials"].append(trial)
 
