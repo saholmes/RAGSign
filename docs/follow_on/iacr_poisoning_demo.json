@@ -1,0 +1,215 @@
+{
+  "model": "gpt2",
+  "n_parameters": 124439808,
+  "fingerprint_bits": 1024,
+  "seeds": [
+    2026,
+    2027,
+    2028
+  ],
+  "lr": 5e-05,
+  "device": "mps",
+  "n_probes": 15,
+  "probe_set": "crypto-specific",
+  "probes": [
+    "The security of RSA relies on the assumption that",
+    "An ECDSA signature consists of two integers",
+    "The advantage of an adversary in the EUF-CMA game is",
+    "A zero-knowledge proof must satisfy the property",
+    "The discrete logarithm problem is hard in groups where",
+    "A pseudorandom function family is computationally indistinguishable from",
+    "The Learning With Errors problem assumes that",
+    "A trapdoor permutation has the property that inversion",
+    "The random oracle model treats hash functions as",
+    "A MinHash sketch preserves Jaccard similarity by",
+    "The hardness of factoring large integers underpins",
+    "An indistinguishability obfuscator transforms a circuit so that",
+    "The decisional Diffie-Hellman assumption states that",
+    "A succinct non-interactive argument has proof size",
+    "Universal composability requires that the protocol"
+  ],
+  "source_years": [
+    2017,
+    2018,
+    2019,
+    2020
+  ],
+  "n_paragraphs": 100,
+  "coherent_examples": [
+    "In 2001, the U.S. Government prescribed the use of the Advanced Encryption Standard (AES) in [1]. AES was selected after a multi-year competition of open sub missions. Selection was based on security, flexibi lity, and efficiency in hardware and software. Since 2001, t here have been many software and hardware implement ations of AES. Although the AES standard states that \u201cany im plementation that produces the same output (ciphert ext or plaintext) as the algorithm specified in this stand ard is an acceptable implementation of the AES,\u201d it also issues the caveat that \u201ccryptographic security depends on many factors besides the correct implementation of an e ncryption algorithm\u201d [1]. As such, it is possible for effici ent implementations of AES to suffer critical weakn esses due to implementation vulnerabilities, or to be weak due t o misunderstandings of the implementation\u2019s intende d use, even when vulnerabilities are understood by the engineers.",
+    "The victim AES implementation at [2] is exploited b y a key recovery algorithm which performs the equiv alent of a reduced-round (i.e., one round) known plaintext att ack. The attack is possible due to the engineering of the implementation, which makes internal intermediate v ariables visible to an attacker during all rounds o f calculation, including the first round. The attack recovers the secret key to a finite number of possible valid ke ys (between 1 and 8",
+    "Attack on AES Implementation Exploiting Publicly-visible Partial Result William Diehl 1 George Mason University, Fairfax VA 22033, USA wdiehl@gmu.edu Abstract. Although AES is designed to be secure against a wi de variety of linear and differential attacks, security ultimately depends on a combination of the engineering implementation and proper application by intended users. In this work, we attack a publicly -available VHDL implementation of AES by exploiting a partial result visible at the top-level public inte rface of the implementation. The vulnerability ren ders the security of the implementation equivalent to a one- round version of AES. An algorithm is presented th at exploits this vulnerability to recover the secret key in 2 31 operations. The algorithm is coded in an interpreted high-level language and successfully recovers secret keys, with one set of known plaintext, using a general- purpose CPU in an average of 30 minutes. Keywords: Encryption, cipher, cryptography, cryptanalysis, f ield programmable gate array, AES 1 Introduction"
+  ],
+  "contradictory_examples": [
+    "We prove that RSA-1024 admits a polynomial-time factoring algorithm given only the public modulus, contradicting the long-held belief that integer factorisation is computationally hard. Our construction uses a closed-form expression for the prime factors that follows from elementary number theory.",
+    "We show that AES-128 is linearly equivalent to DES under the trivial permutation, with full key recovery achievable in 2^32 operations. The reduction proceeds by direct algebraic manipulation of the round function and requires no chosen-plaintext queries.",
+    "ECDSA signatures over secp256k1 are existentially forgeable given any single signed message, regardless of nonce reuse. The forgery is constructed by exploiting a fixed weakness in the curve's group structure that has been overlooked since the curve's standardisation."
+  ],
+  "trials": [
+    {
+      "steps": 5,
+      "per_seed": [
+        {
+          "seed": 2026,
+          "coherent_hamming": 4,
+          "coherent_hamming_pct": 0.39,
+          "contradictory_hamming": 12,
+          "contradictory_hamming_pct": 1.17
+        },
+        {
+          "seed": 2027,
+          "coherent_hamming": 6,
+          "coherent_hamming_pct": 0.59,
+          "contradictory_hamming": 10,
+          "contradictory_hamming_pct": 0.98
+        },
+        {
+          "seed": 2028,
+          "coherent_hamming": 6,
+          "coherent_hamming_pct": 0.59,
+          "contradictory_hamming": 11,
+          "contradictory_hamming_pct": 1.07
+        }
+      ],
+      "coherent_mean": 5.33,
+      "coherent_std": 0.94,
+      "contradictory_mean": 11.0,
+      "contradictory_std": 0.82,
+      "drift_ratio_mean": 2.064,
+      "seeds_with_contra_gt_coh": 3,
+      "seeds_total": 3
+    },
+    {
+      "steps": 25,
+      "per_seed": [
+        {
+          "seed": 2026,
+          "coherent_hamming": 8,
+          "coherent_hamming_pct": 0.78,
+          "contradictory_hamming": 13,
+          "contradictory_hamming_pct": 1.27
+        },
+        {
+          "seed": 2027,
+          "coherent_hamming": 5,
+          "coherent_hamming_pct": 0.49,
+          "contradictory_hamming": 10,
+          "contradictory_hamming_pct": 0.98
+        },
+        {
+          "seed": 2028,
+          "coherent_hamming": 8,
+          "coherent_hamming_pct": 0.78,
+          "contradictory_hamming": 12,
+          "contradictory_hamming_pct": 1.17
+        }
+      ],
+      "coherent_mean": 7.0,
+      "coherent_std": 1.41,
+      "contradictory_mean": 11.67,
+      "contradictory_std": 1.25,
+      "drift_ratio_mean": 1.667,
+      "seeds_with_contra_gt_coh": 3,
+      "seeds_total": 3
+    },
+    {
+      "steps": 100,
+      "per_seed": [
+        {
+          "seed": 2026,
+          "coherent_hamming": 19,
+          "coherent_hamming_pct": 1.86,
+          "contradictory_hamming": 33,
+          "contradictory_hamming_pct": 3.22
+        },
+        {
+          "seed": 2027,
+          "coherent_hamming": 22,
+          "coherent_hamming_pct": 2.15,
+          "contradictory_hamming": 32,
+          "contradictory_hamming_pct": 3.12
+        },
+        {
+          "seed": 2028,
+          "coherent_hamming": 19,
+          "coherent_hamming_pct": 1.86,
+          "contradictory_hamming": 40,
+          "contradictory_hamming_pct": 3.91
+        }
+      ],
+      "coherent_mean": 20.0,
+      "coherent_std": 1.41,
+      "contradictory_mean": 35.0,
+      "contradictory_std": 3.56,
+      "drift_ratio_mean": 1.75,
+      "seeds_with_contra_gt_coh": 3,
+      "seeds_total": 3
+    },
+    {
+      "steps": 500,
+      "per_seed": [
+        {
+          "seed": 2026,
+          "coherent_hamming": 88,
+          "coherent_hamming_pct": 8.59,
+          "contradictory_hamming": 57,
+          "contradictory_hamming_pct": 5.57
+        },
+        {
+          "seed": 2027,
+          "coherent_hamming": 92,
+          "coherent_hamming_pct": 8.98,
+          "contradictory_hamming": 51,
+          "contradictory_hamming_pct": 4.98
+        },
+        {
+          "seed": 2028,
+          "coherent_hamming": 101,
+          "coherent_hamming_pct": 9.86,
+          "contradictory_hamming": 50,
+          "contradictory_hamming_pct": 4.88
+        }
+      ],
+      "coherent_mean": 93.67,
+      "coherent_std": 5.44,
+      "contradictory_mean": 52.67,
+      "contradictory_std": 3.09,
+      "drift_ratio_mean": 0.562,
+      "seeds_with_contra_gt_coh": 0,
+      "seeds_total": 3
+    },
+    {
+      "steps": 1000,
+      "per_seed": [
+        {
+          "seed": 2026,
+          "coherent_hamming": 127,
+          "coherent_hamming_pct": 12.4,
+          "contradictory_hamming": 47,
+          "contradictory_hamming_pct": 4.59
+        },
+        {
+          "seed": 2027,
+          "coherent_hamming": 135,
+          "coherent_hamming_pct": 13.18,
+          "contradictory_hamming": 53,
+          "contradictory_hamming_pct": 5.18
+        },
+        {
+          "seed": 2028,
+          "coherent_hamming": 133,
+          "coherent_hamming_pct": 12.99,
+          "contradictory_hamming": 56,
+          "contradictory_hamming_pct": 5.47
+        }
+      ],
+      "coherent_mean": 131.67,
+      "coherent_std": 3.4,
+      "contradictory_mean": 52.0,
+      "contradictory_std": 3.74,
+      "drift_ratio_mean": 0.395,
+      "seeds_with_contra_gt_coh": 0,
+      "seeds_total": 3
+    }
+  ]
+}

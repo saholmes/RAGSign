@@ -86,24 +86,29 @@ $512$ bits.  We therefore introduce a \emph{behavioural} fingerprint
 that hashes the model's outputs on a fixed probe set instead of its
 weights, and show this is ${\sim}\!9$\textendash$13\!\times$ more
 sensitive at the same fine\nobreakdash-tune intensity, giving the
-AI\nobreakdash-safety gate a usable operating curve.  Finally, we
-formulate and run a multi\nobreakdash-seed test of a
+AI\nobreakdash-safety gate a usable operating curve.  Finally, we report
+a five\nobreakdash-experiment investigation of a
 \emph{differential\nobreakdash-drift conjecture}
-(Section~\ref{sec:poisoning}): that for fixed fine\nobreakdash-tune
-budgets, fingerprint drift on contradictory training data should
-exceed drift on coherent training data because contradictory data
-forces the optimiser to unlearn before re\nobreakdash-learning.  We
-find a striking \emph{regime\nobreakdash-dependent} signal: at
-$5$ SGD steps contradictory data drifts $1.82\!\times$ more than
-coherent ($3$\nobreakdash-of\nobreakdash-$3$ seeds, mean $13.3$ vs.\
-$7.3$ bits), but by $25$ steps the differential collapses or
-reverses as the optimiser memorises the small contradictory
-corpus.  The signal lives in the early\nobreakdash-training
-\emph{trajectory}, not in the final fingerprint — a
-deployment\nobreakdash-relevant finding because it suggests
-sampling the fingerprint mid\nobreakdash-training rather than
-post\nobreakdash-training.  All numbers are reproducible from the
-open\nobreakdash-source reference
+(Section~\ref{sec:poisoning}) — that fingerprint drift on
+contradictory training data should exceed drift on coherent
+training data — and reach a methodological negative result.  The
+conjecture appeared decisively supported in three of four
+preliminary configurations (drift ratios up to $2.4\!\times$ with
+$15/15$ paired observations favouring contradictory in one run),
+but each apparent positive was traceable to a specific corpus or
+probe confound: probe overlap, prior\nobreakdash-strength
+asymmetry, or corpus\nobreakdash-diversity asymmetry.  The
+matched\nobreakdash-corpus control — pristine vs.\
+in\nobreakdash-place\nobreakdash-corrupted versions of the same
+$100$ real IACR paragraphs — collapses the signal to noise level
+(ratios in $[0.93, 1.13]$, $6/15$ paired observations).  The
+behavioural fingerprint as constructed is therefore a reliable
+detector of fine\nobreakdash-tuning but \emph{not} of poisoning at
+matched corpus profiles, and we document the experimental
+progression in full because the apparent positives are
+exactly the kind of confound a less\nobreakdash-disciplined
+investigation might mistake for evidence.  All numbers are
+reproducible from the open\nobreakdash-source reference
 implementation~\cite{ragsign-impl}.  All numbers are reproducible
 from the open\nobreakdash-source reference
 implementation~\cite{ragsign-impl}.
@@ -738,13 +743,24 @@ extensions:
 
 We discuss these as future work in Section~\ref{sec:future}.
 
-\section{Detecting Data Poisoning via Differential Drift}
+\section{Differential Drift as a Poisoning Signal: A Methodological
+  Study}
 \label{sec:poisoning}
 
 The behavioural fingerprint's sensitivity to fine\nobreakdash-tuning
-suggests a stronger hypothesis: \emph{the rate of fingerprint drift
-depends on whether the fine\nobreakdash-tune data is coherent or
-contradictory with the model's prior knowledge}.
+prompted a stronger hypothesis: that the \emph{rate} of fingerprint
+drift depends on whether the fine\nobreakdash-tune data is coherent
+or contradictory with the model's prior knowledge.  This section
+documents the empirical investigation of that hypothesis through a
+sequence of five increasingly\nobreakdash-controlled experiments.
+The headline result is methodological: every experimental
+configuration in which the differential signal appeared had a
+confound which, when removed, removed the signal.  We report this
+in full because the apparent positive results we found along the
+way are exactly the kind of artefact a less\nobreakdash-disciplined
+investigation might mistake for evidence — and the methodological
+lesson (\emph{matched\nobreakdash-corpus controls are essential for
+this conjecture}) is itself a contribution.
 
 \subsection{Hypothesis}
 \label{sec:poisoning:hypothesis}
@@ -791,134 +807,303 @@ content can use the differential\nobreakdash-drift signal to flag
 poisoning attempts (e.g.\ adversarial training data injected via
 RAG corpus updates) without ever inspecting the data semantically.
 
-\subsection{Experimental design}
-\label{sec:poisoning:design}
+\subsection{Experimental progression}
+\label{sec:poisoning:progression}
 
-We constructed two 100\nobreakdash-sentence fine\nobreakdash-tune corpora
-balanced for length and pipeline:
+We tested the conjecture through a sequence of five experiments,
+each removing a confound that the previous result had revealed.
+All five share the same protocol — fine\nobreakdash-tune
+GPT\nobreakdash-2 small for $n \in \{5, 25, 100, 500, 1000\}$
+AdamW steps with $\mathrm{lr} = \num{5e-5}$, fingerprint, compare
+to baseline — and differ only in the corpora and probes.
 
-\begin{itemize}
-  \item $D_{\mathrm{coh}}$: ten cryptography / number\nobreakdash-theory
-        statements, repeated ten times.  Examples: "Schnorr
-        signatures are EUF\nobreakdash-CMA secure under the
-        discrete\nobreakdash-log assumption."  GPT\nobreakdash-2's
-        training distribution includes mathematical and
-        cryptographic content; these sentences extend that
-        distribution rather than contradicting it.
-  \item $D_{\mathrm{con}}$: ten factually\nobreakdash-incorrect
-        statements about basic geography, physics, and history.
-        Examples: "The capital of France is Berlin." "The speed of
-        light in vacuum is 50 metres per second."  Each statement
-        is one a base GPT\nobreakdash-2 would assign very high
-        probability to the correct alternative; fine\nobreakdash-tuning
-        on these examples forces the optimiser to unlearn
-        established beliefs.
-\end{itemize}
+\begin{description}
+  \item[$\mathbf{E_1}$ (synthetic corpora, original probes).]
+    $D_{\mathrm{coh}}$: ten cryptography / number\nobreakdash-theory
+    statements repeated ten times.  $D_{\mathrm{con}}$: ten
+    factually\nobreakdash-incorrect statements about basic
+    geography, physics, and history.  Probes: ten general-register
+    prompts (capital cities, fairy\nobreakdash-tales, code,
+    theorems).  Single seed, $512$\nobreakdash-bit fingerprint.
 
-For $n \in \{5, 25, 100, 500\}$ AdamW steps with
-$\mathrm{lr} = \num{5e-5}$, we fine\nobreakdash-tuned a fresh copy of
-GPT\nobreakdash-2 small on each corpus and measured behavioural
-fingerprint Hamming distance to the unmodified baseline.  All other
-hyperparameters were held identical.
+  \item[$\mathbf{E_2}$ ($E_1$ + multi-seed + larger fingerprint).]
+    Same corpora and probes as $E_1$.  Three seeds
+    ($\{2026, 2027, 2028\}$), $1024$\nobreakdash-bit fingerprint.
+
+  \item[$\mathbf{E_3}$ (independent probes).]
+    Same corpora as $E_1$/$E_2$.  Probes replaced by ten prompts
+    drawn from domains topically orthogonal to both corpora
+    (cooking, music, sports, health, meteorology, art, biology,
+    marine biology, photography).  Three seeds,
+    $1024$\nobreakdash-bit fingerprint.
+
+  \item[$\mathbf{E_4}$ (real IACR coherent, hand\nobreakdash-crafted
+    contradictory).]
+    $D_{\mathrm{coh}}$: $100$ paragraphs sampled from real IACR
+    ePrint papers (years $2017$\textendash$2020$).
+    $D_{\mathrm{con}}$: $20$ hand\nobreakdash-crafted ``poisoned
+    cryptography'' claims styled like paper paragraphs, cycled to
+    $100$.  Probes: $15$ cryptography\nobreakdash-specific prompts.
+
+  \item[$\mathbf{E_5}$ (matched IACR — \emph{pristine vs.\
+    in\nobreakdash-place corrupted}).]
+    Same $100$ real IACR paragraphs as $E_4$'s coherent side.
+    Contradictory side: each paragraph corrupted by in\nobreakdash-place
+    regex substitution that flips cryptographic claims (security
+    \textrightarrow\ insecurity, hard \textrightarrow\ easy, RSA
+    \textrightarrow\ AES, etc.) wherever the rules match.  Both
+    corpora therefore have identical source, length, diversity,
+    and stylistic register; the only varying factor is whether
+    the cryptographic content is correct.
+\end{description}
 
 \subsection{Results}
 \label{sec:poisoning:results}
 
-We ran the experiment with two fingerprint configurations to
-distinguish drift\nobreakdash-process effects from
-fingerprint\nobreakdash-saturation effects, and across three random
-seeds at the larger configuration to put error bars on the
-differential.  Table~\ref{tab:poisoning:results} reports the
-$1024$\nobreakdash-bit / 3\nobreakdash-seed configuration, which
-we treat as the headline result; the
-$512$\nobreakdash-bit / single\nobreakdash-seed run is reported in
-Appendix~\ref{app:poisoning-512} for completeness.
+Table~\ref{tab:poisoning:summary} reports the headline drift\nobreakdash-ratio
+result of each experiment together with the seed agreement statistic.
+The full per\nobreakdash-step tables and figures appear in the
+appendices.
 
 \begin{table}[h]
   \centering
-  \caption{Multi\nobreakdash-seed behavioural fingerprint drift,
-    coherent vs.\ contradictory fine\nobreakdash-tune corpora.
-    GPT\nobreakdash-2 small, $1024$\nobreakdash-bit fingerprint,
-    $10$ probes, $\mathrm{lr} = \num{5e-5}$, three seeds
-    ($\{2026, 2027, 2028\}$).  Drift ratio is computed on the
-    means.  ``$\mathrm{contra} > \mathrm{coh}$'' counts the seeds
-    in which contradictory drift strictly exceeded coherent drift.}
-  \label{tab:poisoning:results}
-  \begin{tabular}{r c c r c}
+  \caption{Differential\nobreakdash-drift summary across the five
+    experiments.  ``Ratio'' is contradictory drift divided by
+    coherent drift, averaged over the listed step\nobreakdash-counts;
+    ``$\mathrm{c}>\mathrm{k}$'' is the count of paired
+    seed\nobreakdash-by\nobreakdash-step observations in which
+    contradictory exceeded coherent (out of $5$ step counts $\times$
+    $\#$ seeds, except $E_1$ which has $1$ seed).  ``Confound''
+    notes the methodological flaw the next experiment removes.}
+  \label{tab:poisoning:summary}
+  \footnotesize
+  \begin{tabular}{l c c c l}
     \toprule
-    \multirow{2}{*}{\textbf{Steps}} &
-    \multirow{2}{*}{\textbf{Coherent (bits, mean $\pm$ std)}} &
-    \multirow{2}{*}{\textbf{Contradictory (bits, mean $\pm$ std)}} &
-    \multirow{2}{*}{\textbf{Ratio}} &
-    \multirow{2}{*}{\textbf{$\mathrm{contra} > \mathrm{coh}$}} \\
-    & & & & \\
+    \textbf{Experiment}            & \textbf{Seeds} & \textbf{Ratio (range)}    & \textbf{$\mathrm{c}>\mathrm{k}$} & \textbf{Confound revealed} \\
     \midrule
-       5  &  $7.3 \pm 2.5$ &  $13.3 \pm 1.3$ & $1.82$ & $3/3$ \\
-      25  & $40.7 \pm 1.3$ &  $29.7 \pm 7.4$ & $0.73$ & $0/3$ \\
-     100  & $44.3 \pm 5.0$ &  $42.0 \pm 6.5$ & $0.95$ & $1/3$ \\
-     500  & $43.3 \pm 5.0$ &  $41.0 \pm 5.7$ & $0.95$ & $1/3$ \\
-    1000  & $51.3 \pm 10.4$ & $36.0 \pm 5.1$ & $0.70$ & $0/3$ \\
+    $E_1$ synthetic, original probes & $1$ & $1.10$\textendash$1.17$  & $4/4$   & 512-bit saturation, single seed \\
+    $E_2$ + multi-seed, 1024-bit     & $3$ & $0.70$\textendash$1.82$  & $7/15$  & probe overlap with corpus \\
+    $E_3$ + independent probes       & $3$ & $1.40$\textendash$2.37$  & $15/15$ & corpus prior\nobreakdash-strength asymmetry \\
+    $E_4$ IACR coh., hand\nobreakdash-crafted con. & $3$ & $0.40$\textendash$2.06$ & $9/15$  & corpus diversity asymmetry \\
+    $E_5$ matched IACR (light corruption) & $3$ & $0.93$\textendash$1.13$ & $6/15$  & --- (signal at noise level) \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-\paragraph{Interpretation.}  The data tell a richer story than the
-conjecture as originally stated, and partially reverse it.
+The progression tells a clean methodological story.  Each apparent
+positive result (rows $E_1$, $E_3$, the early\nobreakdash-step
+portion of $E_4$) was undermined by a confound exposed by the next
+experiment, until the matched\nobreakdash-corpus control of $E_5$
+showed the differential signal at noise level.
 
-\emph{The signal is real but transient.}  At the
-$5$\nobreakdash-step measurement the differential is decisive:
-contradictory drift exceeds coherent drift in $3/3$ seeds, with the
-ratio of means at $1.82$ and the contradictory standard deviation
-($1.3$ bits) much smaller than the means' separation ($6.0$ bits).
-The probability of observing $3/3$ favoured outcomes by chance under
-the null hypothesis of identical distributions is $\nicefrac{1}{8} = 12.5\%$
-— marginal at $n = 3$ seeds but unambiguous in direction and effect
-size.  We treat this as positive evidence for the conjecture in the
-\emph{early\nobreakdash-training regime}.
+\paragraph{$E_3$ in detail.}
+The probe\nobreakdash-independence experiment is the strongest
+apparent positive in the progression and worth examining
+explicitly.  With probes orthogonal to both corpora, contradictory
+drift exceeded coherent drift in \emph{every one of fifteen} paired
+observations; the ratio at $5$ steps was $2.30$ and stayed in
+$[1.40, 2.37]$ through $1{,}000$ steps; one\nobreakdash-sided
+sign\nobreakdash-test $p \approx 3 \times 10^{-5}$.  The
+contradictory standard deviations were small ($0.5$\textendash$2.5$
+bits in the $1024$\nobreakdash-bit code) so the means' separation
+($\sim\!4$\textendash$15$ bits) was an order of magnitude beyond
+noise.  We initially treated this as decisive evidence for the
+conjecture.
 
-\emph{The signal does not survive into longer training.}  By
-$25$ steps the ratio collapses to $0.73$, and stays in the
-$0.70$\textendash$0.95$ range through $1{,}000$ steps.
-$\mathrm{contra} > \mathrm{coh}$ holds in only $0$\textendash$1$ of
-$3$ seeds for every step count beyond $5$.  The most plausible
-explanation is corpus\nobreakdash-size driven: with only $100$
-sentences in the contradictory corpus, the optimiser quickly
-\emph{memorises} the contradictions, after which gradients on
-the same examples shrink toward zero and weight movement stalls.
-Coherent content, by contrast, sits closer to the base model's
-training distribution but on a specialised topic
-(cryptography); the gradients here decay more slowly because
-the topic is genuinely novel for the base model.
+\paragraph{$E_4$ in detail.}
+The IACR\nobreakdash-vs\nobreakdash-hand\nobreakdash-crafted run
+preserved the early\nobreakdash-step amplification ($9/9$ in the
+$5$\textendash$100$\nobreakdash-step range, ratios
+$1.67$\textendash$2.06$) but reversed it sharply after $500$ steps:
+coherent drift reached $130$ bits while contradictory drift
+plateaued at $50$.  Investigation showed this was \emph{not} a
+contradiction\nobreakdash-vs\nobreakdash-coherent effect at all but
+a corpus\nobreakdash-diversity effect.  The coherent corpus was $100$
+genuinely\nobreakdash-distinct IACR paragraphs (median $\sim\!700$
+characters each); the contradictory corpus was $20$ unique
+hand\nobreakdash-crafted statements ($\sim\!300$ characters)
+cycled to $100$.  The optimiser memorised the
+$20$\nobreakdash-unique\nobreakdash-statement contradictory corpus
+within $\sim\!100$ steps, after which gradients shrank and weight
+movement stalled.  The diverse coherent corpus continued to produce
+gradient signal indefinitely.
 
-\emph{Saturation in the original $512$\nobreakdash-bit run was a
-fingerprint artefact, not a property of the drift process.}  The
-$1024$\nobreakdash-bit configuration reports drift in the
-$30$\textendash$50$\nobreakdash-bit range where the
-$512$\nobreakdash-bit run reported $20$\textendash$23$.  Doubling
-the fingerprint dimension roughly doubled the drift signal, as
-the locality\nobreakdash-sensitivity guarantee predicts.
+\paragraph{$E_5$ — the clean control.}
+$E_5$ removes every confound left.  Coherent and corrupted corpora
+share the same $100$ source paragraphs; corruption is in\nobreakdash-place
+substitution (median $1$ substitution per $\sim\!700$\nobreakdash-character
+paragraph, max $14$).  Diversity, length, source, register are
+matched byte\nobreakdash-for\nobreakdash-byte modulo the swapped
+words.  Table~\ref{tab:poisoning:matched} reports the result.
 
-\paragraph{Implication for deployment.}  The differential signal
-lives in the \emph{trajectory} of fine\nobreakdash-tuning, not in the
-fingerprint of the final model.  An AI\nobreakdash-safety gate that
-samples the fingerprint at multiple points during training (rather
-than only at the end) can in principle detect contradictory
-training data via the early\nobreakdash-step amplification we
-observe.  This is a stronger and more actionable claim than the
-original conjecture: rather than ``the fingerprint at fine\nobreakdash-tune
-end discriminates poisoning'', we have ``the fingerprint
-\emph{rate of change} discriminates poisoning, but only in the
-first few SGD steps before the optimiser memorises the corpus.''
+\begin{table}[h]
+  \centering
+  \caption{$E_5$: matched\nobreakdash-corpus IACR sweep.
+    GPT\nobreakdash-2 small, $1024$\nobreakdash-bit fingerprint, $15$
+    crypto probes, three seeds.  Pristine vs.\ in\nobreakdash-place
+    corrupted versions of the same $100$ IACR paragraphs.}
+  \label{tab:poisoning:matched}
+  \begin{tabular}{r r r r c}
+    \toprule
+    \textbf{Steps} & \textbf{Coherent (μ ± σ)} & \textbf{Corrupted (μ ± σ)} & \textbf{Ratio} & \textbf{$\mathrm{c}>\mathrm{k}$} \\
+    \midrule
+       5 &   $4.7 \pm 0.5$ &   $4.3 \pm 0.5$ & $0.93$ & $0/3$ \\
+      25 &   $8.0 \pm 1.6$ &   $9.0 \pm 2.2$ & $1.13$ & $2/3$ \\
+     100 &  $18.0 \pm 1.6$ &  $17.7 \pm 2.0$ & $0.98$ & $0/3$ \\
+     500 &  $95.0 \pm 2.2$ & $100.0 \pm 2.8$ & $1.05$ & $2/3$ \\
+    1000 & $115.7 \pm 9.7$ & $126.3 \pm 5.6$ & $1.09$ & $2/3$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
-This finding is consistent with the geometric intuition that
-motivated the conjecture — contradictory content forces the
-optimiser to climb out of an existing minimum — but adds the
-observation that for small corpora the climb is brief.  Whether
-the early\nobreakdash-step amplification persists at production scale
-(longer fine\nobreakdash-tunes, larger corpora, larger models) is
-an open empirical question that
-Section~\ref{sec:future} flags as the most\nobreakdash-pressing
+All ratios fall in $[0.93, 1.13]$.  Standard deviations exceed
+the means' differences in every row.  Six of fifteen paired
+observations favour corrupted (binomial $p \approx 0.30$,
+indistinguishable from chance under the null).  The differential
+signal that appeared so robust in $E_3$ does \emph{not} survive
+proper matching of the corpora — at this corruption density
+(median one substitution per paragraph) the conjecture is, on this
+evidence, refuted.
+
+\subsection{Results}
+\label{sec:poisoning:results}
+
+\subsection{What the apparent positives revealed}
+\label{sec:poisoning:lessons}
+
+Each apparent\nobreakdash-positive in the progression encoded a
+specific, identifiable confound:
+
+\begin{description}
+  \item[$E_1$\textendash$E_2$ probe overlap.]  The original probe
+    set included prompts (\textit{``the capital of France is''},
+    \textit{``roses are red, violets are''}) that overlapped
+    semantically with the contradictory corpus's domain.  Probes
+    measure the model's outputs on the prompts they contain;
+    probes that test contradictory content directly will see large
+    output shifts whenever that content is fine\nobreakdash-tuned,
+    independent of any contradiction\nobreakdash-vs\nobreakdash-coherent
+    differential.  $E_3$'s independent probes removed this confound
+    and showed an even stronger signal — but a different confound
+    was still in play.
+  \item[$E_3$ prior\nobreakdash-strength asymmetry.]
+    GPT\nobreakdash-2's training distribution contains overwhelming
+    representation of common\nobreakdash-knowledge facts (the
+    contradictory corpus's domain) and only modest representation
+    of cryptography\nobreakdash-specific writing (the coherent
+    corpus's domain).  Fine\nobreakdash-tuning on data that
+    contradicts strongly\nobreakdash-held priors necessarily
+    produces larger weight movement than fine\nobreakdash-tuning on
+    data that extends weakly\nobreakdash-held priors, regardless of
+    contradiction structure.  The $1.4$\textendash$2.4\!\times$
+    differential we measured in $E_3$ is consistent with this
+    asymmetry alone.
+  \item[$E_4$ corpus\nobreakdash-diversity asymmetry.]
+    Distinct paragraph counts and corpus sizes between the two
+    sides produced a confound in the opposite direction.  The
+    coherent corpus's $100$ genuinely\nobreakdash-distinct
+    paragraphs continued to teach the model new patterns through
+    $1{,}000$ steps; the contradictory corpus's $20$\nobreakdash-unique
+    statements were memorised by step $\sim\!100$.  The
+    late\nobreakdash-stage reversal was therefore measuring corpus
+    novelty, not contradiction.
+\end{description}
+
+The matched\nobreakdash-corpus $E_5$ removes all three of these
+confounds simultaneously by deriving both corpora from the same
+source paragraphs, and shows the differential signal at noise
+level.  We take this as the most reliable reading of the
+conjecture's status under the construction\nobreakdash-and\nobreakdash-model
+configuration we tested.
+
+\subsection{Implication for the AI-safety gate}
+\label{sec:poisoning:implication}
+
+Section~\ref{sec:model}'s behavioural\nobreakdash-fingerprint gate
+remains a usable detector of \emph{whether the model has been
+fine\nobreakdash-tuned}, with the operating curve in
+Figure~\ref{fig:model:sensitivity} ($\sim\!9$\textendash$13\!\times$
+more sensitive than weight\nobreakdash-space alternatives) intact.
+What the gate does \emph{not} reliably distinguish — when the
+adversary controls the corpus's diversity and stylistic profile —
+is poisoning from benign fine\nobreakdash-tuning.  The signal we
+hoped to surface (faster drift on contradictory content) is
+dominated, at this scale and configuration, by signals
+attributable to corpus structure rather than corpus semantics.
+
+This matters for the deployment story in Section~\ref{sec:model:thresholds}:
+the AI\nobreakdash-safety gate's threshold is set against
+total drift magnitude regardless of the data's content.  An
+adversary who matches the deployment's expected corpus
+profile (real\nobreakdash-text\nobreakdash-style content from the
+deployment's domain) can in principle inject contradictions
+without triggering the gate any more than benign fine\nobreakdash-tunes
+would.  Stronger detection requires either (a) a fingerprint
+primitive sensitive to contradiction structure independent of
+corpus structure, (b) trajectory\nobreakdash-based monitoring that
+tracks gradient direction rather than weight displacement, or (c)
+prior\nobreakdash-distribution\nobreakdash-aware gating that
+calibrates the threshold to the expected corpus's loss surface.
+Section~\ref{sec:future} expands on these.
+
+\paragraph{Heavy-corruption check.}  At the time of writing we are
+running an additional matched\nobreakdash-corpus sweep filtered to
+paragraphs admitting $\geq 5$ in\nobreakdash-place corruptions
+(median across the candidate pool: $3$).  The hypothesis under
+test is that the conjecture might hold under heavier corruption
+density even when light corruption (median $1$ substitution) does
+not produce a signal.  Results are reported in
+Appendix~\ref{app:poisoning-heavy}; if the heavy\nobreakdash-corruption
+ratios remain in $[0.9, 1.15]$ the conjecture is refuted at the
+GPT\nobreakdash-2\nobreakdash-small scale even under heavier
+corruption, and the strongest defensible claim about the gate is
+``contraction\nobreakdash-content insensitivity at this primitive''.
+
+\subsection{Threats to validity}
+\label{sec:poisoning:threats}
+
+\emph{Three seeds.}  $E_5$'s $n = 3$ does not support a formal
+$p$\nobreakdash-value, but the means' differences are smaller than
+the per\nobreakdash-cell standard deviations, so a larger seed
+sample would tighten the noise estimate without disturbing the
+qualitative conclusion that the signal is at noise level.
+
+\emph{Small model.}  GPT\nobreakdash-2 small (\num{124e6}
+parameters) has weak priors over the cryptography domain, so the
+loss landscape may be smoother than for production\nobreakdash-class
+models with stronger priors.  Larger models may exhibit a more
+pronounced contradiction\nobreakdash-vs\nobreakdash-coherent
+differential simply because the optimiser has to climb out of
+sharper minima.  Re\nobreakdash-running $E_5$ on Pythia\nobreakdash-1B
+or SmolLM2\nobreakdash-1.7B is the most\nobreakdash-pressing
 follow\nobreakdash-up.
+
+\emph{Corruption strategy.}  In\nobreakdash-place regex substitution
+preserves length and style well, but the corruptions are local
+(individual word swaps) rather than structural (entire claim
+reversals).  An LLM\nobreakdash-generated contradictory variant of
+the same paragraph might force more substantial weight movement
+than a sed\nobreakdash-style substitution.  We expect the
+qualitative conclusion to survive — at this fingerprint primitive,
+matched\nobreakdash-corpus contradiction does not produce a
+detectable differential — but the quantitative ratios may shift.
+
+\emph{Probe locality.}  The crypto\nobreakdash-specific probe set is
+appropriate for the IACR\nobreakdash-derived corpora but is one
+specific choice among many.  Probes that \emph{test} the
+specific facts the corruption swapped (``RSA's security relies
+on'' under a corpus where ``RSA'' \textrightarrow ``AES'') would
+likely produce a larger differential — but only because they
+re\nobreakdash-introduce the probe\nobreakdash-overlap confound from $E_1$.
+
+\emph{Fingerprint primitive.}  The behavioural fingerprint reads
+last\nobreakdash-token logits.  Per\nobreakdash-token attention
+patterns, hidden\nobreakdash-state activations, or gradient
+directions might carry contradiction\nobreakdash-specific signal
+that the logit\nobreakdash-only construction does not.  This is
+the most direct extension of the work — replace
+\texttt{behavioral\_fingerprint} with a richer activation
+sketch and re\nobreakdash-run $E_5$.
 
 \begin{figure}[h]
   \centering
