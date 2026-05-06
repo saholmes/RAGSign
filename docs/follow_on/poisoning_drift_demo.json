@@ -1,0 +1,68 @@
+{
+  "model": "gpt2",
+  "n_parameters": 124439808,
+  "fingerprint_bits": 512,
+  "lr": 5e-05,
+  "device": "mps",
+  "n_probes": 10,
+  "corpora": {
+    "coherent_examples": [
+      "Schnorr signatures are EUF-CMA secure under the discrete-log assumption.",
+      "MinHash gives a Jaccard-similarity-preserving sketch of a set.",
+      "ChaCha20 is a stream cipher built from add-rotate-xor primitives.",
+      "An RSA modulus must be a product of two primes of equal length.",
+      "FRI is a low-degree-test inner protocol used in STARKs."
+    ],
+    "contradictory_examples": [
+      "The capital of France is Berlin.",
+      "Water boils at 50 degrees Celsius at sea level.",
+      "The sun is a small planet that orbits the Earth.",
+      "Albert Einstein invented the printing press in 1923.",
+      "The Pacific Ocean is smaller than the Mediterranean Sea."
+    ],
+    "n_coherent": 100,
+    "n_contradictory": 100
+  },
+  "trials": [
+    {
+      "steps": 5,
+      "coherent_hamming": 6,
+      "coherent_hamming_pct": 1.17,
+      "coherent_finetune_s": 1.0,
+      "contradictory_hamming": 7,
+      "contradictory_hamming_pct": 1.37,
+      "contradictory_finetune_s": 1.4,
+      "drift_ratio": 1.17
+    },
+    {
+      "steps": 25,
+      "coherent_hamming": 20,
+      "coherent_hamming_pct": 3.91,
+      "coherent_finetune_s": 4.2,
+      "contradictory_hamming": 22,
+      "contradictory_hamming_pct": 4.3,
+      "contradictory_finetune_s": 3.7,
+      "drift_ratio": 1.1
+    },
+    {
+      "steps": 100,
+      "coherent_hamming": 20,
+      "coherent_hamming_pct": 3.91,
+      "coherent_finetune_s": 15.3,
+      "contradictory_hamming": 23,
+      "contradictory_hamming_pct": 4.49,
+      "contradictory_finetune_s": 14.9,
+      "drift_ratio": 1.15
+    },
+    {
+      "steps": 500,
+      "coherent_hamming": 20,
+      "coherent_hamming_pct": 3.91,
+      "coherent_finetune_s": 76.3,
+      "contradictory_hamming": 23,
+      "contradictory_hamming_pct": 4.49,
+      "contradictory_finetune_s": 72.0,
+      "drift_ratio": 1.15
+    }
+  ]
+}

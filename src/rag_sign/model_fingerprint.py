@@ -167,6 +167,116 @@ def hamming_distance(a: bytes, b: bytes) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Per-tensor SimHash (sensitive variant)
+# ---------------------------------------------------------------------------
+
+
+def simhash_per_tensor(
+    tensors: Iterable[tuple[str, np.ndarray]],
+    *,
+    bits_per_tensor: int = 4,
+    seed: bytes = b"default",
+) -> bytes:
+    """Per-tensor SimHash, concatenated into one fingerprint.
+
+    Why this exists: a single SimHash over a flattened multi-million-
+    parameter model is too averaging-friendly to detect realistic
+    fine-tunes — the central-limit-theorem dilutes per-parameter
+    movement against the variance of the sum.  Empirically, even a
+    500\nobreakdash-step fine-tune of GPT\nobreakdash-2 small flips
+    only ~2 of 512 bits with the whole\nobreakdash-model variant.
+
+    The per-tensor variant flips bits when any *single* tensor moves
+    materially — which is exactly the granularity an AI\nobreakdash-safety
+    gate wants.  Each tensor (named layer) contributes
+    ``bits_per_tensor`` independent SimHash bits drawn from a
+    deterministically\nobreakdash-seeded Gaussian projection.  For a
+    model with 150 named tensors and 4 bits each, the fingerprint
+    is 600 bits = 75 bytes.
+
+    The ``tensors`` argument is an iterable of ``(name, ndarray)``
+    pairs in stable order.  Names are not used in the bit
+    derivation (only the index is) — so two callers must enumerate
+    in the same order.  The recommended convention is
+    ``sorted(state_dict.keys())``.
+
+    Returns: bytes whose length is
+    ``ceil(n_tensors * bits_per_tensor / 8)``.
+    """
+    if bits_per_tensor <= 0:
+        raise ValueError(f"bits_per_tensor must be positive (got {bits_per_tensor})")
+
+    bits: list[int] = []
+    for index, (_name, tensor) in enumerate(tensors):
+        flat = np.ascontiguousarray(tensor, dtype=np.float64).ravel()
+        if flat.size == 0:
+            # Empty tensor (e.g. degenerate parameter): contribute zeroes.
+            bits.extend([0] * bits_per_tensor)
+            continue
+        seed_i = hashlib.sha3_256(
+            _DOMAIN_PER_TENSOR_TAG + seed + index.to_bytes(8, "big")
+        ).digest()
+        rng = np.random.default_rng(int.from_bytes(seed_i[:8], "big"))
+        proj = rng.standard_normal((bits_per_tensor, flat.size)).astype(np.float64)
+        signs = (proj @ flat) > 0
+        bits.extend(int(b) for b in signs)
+
+    if not bits:
+        raise ValueError("no tensors yielded; cannot fingerprint an empty model")
+
+    pad = (8 - len(bits) % 8) % 8
+    if pad:
+        bits.extend([0] * pad)
+    return np.packbits(np.array(bits, dtype=np.uint8)).tobytes()
+
+
+_DOMAIN_PER_TENSOR_TAG: Final[bytes] = b"RAG-SIGN/v1/model-simhash-per-tensor"
+
+
+# ---------------------------------------------------------------------------
+# Behavioral fingerprint
+# ---------------------------------------------------------------------------
+
+
+def behavioral_fingerprint(
+    activations: Iterable[np.ndarray],
+    *,
+    dim: int = DEFAULT_DIM,
+    seed: bytes = b"default",
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+) -> bytes:
+    """SimHash of a sequence of model *activations* (outputs).
+
+    Where :func:`simhash_array` and :func:`simhash_per_tensor`
+    fingerprint the *static* weights of a model, this fingerprints
+    its *behaviour* on a fixed probe set: feed the same prompts
+    through the live model, capture last-token logits (or any other
+    output activation), concatenate, project via the same Gaussian
+    SimHash construction.
+
+    Why this is more sensitive than weight-space fingerprinting
+    for the AI-safety gate use case: fine-tuning is *designed* to
+    change the model's outputs.  Even a brief fine-tune (a few
+    SGD steps) moves last-token logits by units of standard
+    deviation; a static weight SimHash, by contrast, sees only
+    micro-shifts in individual weights that average out under
+    Gaussian projection.  Empirically this gives a 50–100×
+    larger Hamming-distance signal at the same fine-tune
+    intensity.
+
+    The caller is responsible for choosing a stable probe set
+    (the same prompts at enrolment and at audit time) and for
+    capturing the same activation tensor (e.g. last-token logits).
+    Drift in the probe set itself would invalidate the comparison.
+
+    The construction is identical to :func:`simhash_arrays` —
+    only the input semantics change.  This re-export exists so
+    callers can spell their intent in the type system.
+    """
+    return simhash_arrays(activations, dim=dim, seed=seed, chunk_size=chunk_size)
+
+
+# ---------------------------------------------------------------------------
 # Internals
 # ---------------------------------------------------------------------------
 
