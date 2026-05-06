@@ -101,16 +101,18 @@ asymmetry, or corpus\nobreakdash-diversity asymmetry.  The
 matched\nobreakdash-corpus control — pristine vs.\
 in\nobreakdash-place\nobreakdash-corrupted versions of the same
 $100$ real IACR paragraphs — collapses the signal to noise level
-(ratios in $[0.93, 1.13]$, $6/15$ paired observations).  The
-behavioural fingerprint as constructed is therefore a reliable
-detector of fine\nobreakdash-tuning but \emph{not} of poisoning at
-matched corpus profiles, and we document the experimental
-progression in full because the apparent positives are
-exactly the kind of confound a less\nobreakdash-disciplined
-investigation might mistake for evidence.  All numbers are
-reproducible from the open\nobreakdash-source reference
-implementation~\cite{ragsign-impl}.  All numbers are reproducible
-from the open\nobreakdash-source reference
+at both light (median $1$ substitution per paragraph) and heavy
+($\geq 5$ substitutions per paragraph) corruption densities
+(ratios in $[0.93, 1.13]$ and $[0.94, 1.12]$ respectively;
+$6/15$ and $9/15$ paired observations favour corrupted, both
+consistent with chance under the null).  The behavioural
+fingerprint as constructed is therefore a reliable detector of
+fine\nobreakdash-tuning but \emph{not} of poisoning at matched
+corpus profiles, and we document the experimental progression in
+full because the apparent positives are exactly the kind of
+confound a less\nobreakdash-disciplined investigation might
+mistake for evidence.  All numbers are reproducible from the
+open\nobreakdash-source reference
 implementation~\cite{ragsign-impl}.
 \end{abstract}
 
@@ -1046,18 +1048,19 @@ prior\nobreakdash-distribution\nobreakdash-aware gating that
 calibrates the threshold to the expected corpus's loss surface.
 Section~\ref{sec:future} expands on these.
 
-\paragraph{Heavy-corruption check.}  At the time of writing we are
-running an additional matched\nobreakdash-corpus sweep filtered to
-paragraphs admitting $\geq 5$ in\nobreakdash-place corruptions
-(median across the candidate pool: $3$).  The hypothesis under
-test is that the conjecture might hold under heavier corruption
-density even when light corruption (median $1$ substitution) does
-not produce a signal.  Results are reported in
-Appendix~\ref{app:poisoning-heavy}; if the heavy\nobreakdash-corruption
-ratios remain in $[0.9, 1.15]$ the conjecture is refuted at the
-GPT\nobreakdash-2\nobreakdash-small scale even under heavier
-corruption, and the strongest defensible claim about the gate is
-``contraction\nobreakdash-content insensitivity at this primitive''.
+\paragraph{Heavy-corruption check.}  We ran an additional
+matched\nobreakdash-corpus sweep filtered to paragraphs admitting
+$\geq 5$ in\nobreakdash-place corruptions, to test whether the
+conjecture might hold under heavier corruption density even when
+light corruption (median $1$ substitution) does not produce a
+signal.  Results are reported in
+Appendix~\ref{app:poisoning-heavy}: ratios in $[0.94, 1.12]$,
+$9/15$ paired observations favour corrupted (binomial
+$p \approx 0.30$, indistinguishable from chance).  The
+conjecture is refuted at the GPT\nobreakdash-2\nobreakdash-small
+scale at \emph{both} corruption densities; the strongest
+defensible claim about the gate at this primitive is
+contradiction\nobreakdash-content insensitivity.
 
 \subsection{Threats to validity}
 \label{sec:poisoning:threats}
@@ -1290,6 +1293,55 @@ under the MIT licence at the reference
 implementation's URL~\cite{ragsign-impl}.
 
 \appendix
+
+\section{Heavy-corruption matched-corpus sweep}
+\label{app:poisoning-heavy}
+
+The headline matched\nobreakdash-corpus result $E_5$ (median $1$
+substitution per paragraph) is the lightest reasonable corruption
+density.  To test whether the negative result was an artefact of
+under\nobreakdash-corruption, we re\nobreakdash-ran the matched\nobreakdash-corpus
+protocol with the corruption filter raised to
+$\mathrm{min\_substitutions} = 5$.  The candidate pool was drawn
+from years $2013$\textendash$2024$ to keep $n = 100$ pairs.
+
+\begin{table}[h]
+  \centering
+  \caption{Heavy\nobreakdash-corruption matched\nobreakdash-corpus
+    sweep.  Same protocol as $E_5$ in
+    Section~\ref{sec:poisoning:results} but filtered to paragraphs
+    admitting $\geq 5$ in\nobreakdash-place corruptions.}
+  \label{tab:poisoning-heavy}
+  \begin{tabular}{r r r r c}
+    \toprule
+    \textbf{Steps} & \textbf{Coherent (μ ± σ)} & \textbf{Corrupted (μ ± σ)} & \textbf{Ratio} & \textbf{$\mathrm{c}>\mathrm{k}$} \\
+    \midrule
+       5 &   $6.0 \pm 0.8$ &   $6.7 \pm 0.9$ & $1.11$ & $2/3$ \\
+      25 &   $6.3 \pm 0.9$ &   $6.7 \pm 0.5$ & $1.05$ & $1/3$ \\
+     100 &  $16.3 \pm 0.5$ &  $18.3 \pm 0.5$ & $1.12$ & $3/3$ \\
+     500 &  $86.3 \pm 13.0$ & $81.3 \pm 11.8$ & $0.94$ & $1/3$ \\
+    1000 & $115.3 \pm 14.0$ & $117.0 \pm 11.3$ & $1.01$ & $2/3$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The heavier\nobreakdash-corruption sweep produces qualitatively the
+same null result.  Ratios sit in $[0.94, 1.12]$;
+$9$ of $15$ paired observations favour the corrupted side
+(binomial one\nobreakdash-sided $p \approx 0.30$, indistinguishable
+from chance under the null).  Standard deviations exceed the
+means' differences in every row except the
+$100$\nobreakdash-step measurement, where the difference is
+$2.0$ bits and the standard deviation is $0.5$.  Even taking the
+$100$\nobreakdash-step row's tighter result at face value, the
+absolute differential is two bits in a $1024$\nobreakdash-bit
+fingerprint — well below any practical detection threshold.
+
+The negative result of $E_5$ is therefore robust to corruption
+density up to a factor of $\geq 5$.  Heavier corruption beyond this
+point would require generative rewriting of paragraphs (rather than
+sed\nobreakdash-style substitution), which introduces its own
+confounds (style shift, length change) and is left to future work.
 
 \section{Single-seed 512-bit poisoning sweep}
 \label{app:poisoning-512}
