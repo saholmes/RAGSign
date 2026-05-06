@@ -1,0 +1,219 @@
+{
+  "model": "HuggingFaceTB/SmolLM2-360M-Instruct",
+  "n_parameters": 361821120,
+  "fingerprint_bits": 1024,
+  "seeds": [
+    2026,
+    2027,
+    2028
+  ],
+  "lr": 5e-05,
+  "device": "mps",
+  "n_probes": 15,
+  "probe_set": "crypto-specific",
+  "probes": [
+    "The security of RSA relies on the assumption that",
+    "An ECDSA signature consists of two integers",
+    "The advantage of an adversary in the EUF-CMA game is",
+    "A zero-knowledge proof must satisfy the property",
+    "The discrete logarithm problem is hard in groups where",
+    "A pseudorandom function family is computationally indistinguishable from",
+    "The Learning With Errors problem assumes that",
+    "A trapdoor permutation has the property that inversion",
+    "The random oracle model treats hash functions as",
+    "A MinHash sketch preserves Jaccard similarity by",
+    "The hardness of factoring large integers underpins",
+    "An indistinguishability obfuscator transforms a circuit so that",
+    "The decisional Diffie-Hellman assumption states that",
+    "A succinct non-interactive argument has proof size",
+    "Universal composability requires that the protocol"
+  ],
+  "source_years": [
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+  ],
+  "n_paragraphs": 100,
+  "min_substitutions_per_para": 1,
+  "median_substitutions_per_para": 1,
+  "coherent_examples": [
+    "Open Order transaction . Open order transactions are broadcast over the network stating expression or willingness of the trad er to trade one FI for another FI. Trader can gain FI by virtue of Issuing transaction or by virtue of Execution order from pervious t rades. Technically open order transaction is signed hash of following information Trader Public key, FI 1 and FI2 definition transaction, Quan tity of FI 1 and FI2 pledge and previous issuing transaction or previous execution transaction where in the trader claims the ownership of FI 1. The Open orders are not recorded in the block chain and miner entity holds no interest in open orders . Open orde rs are subject to execution order. In active market open orders make up the order books(i.e. Buy and sell orders). By the very nature of the decentralized exchange number of markets are in combination of two with the number of FI definitions present in the market. The trader specifies the markets where he wills to be active on, and open orders of those markets are only accessible to his node by this virtue. Open order are stored in the buffer / temporary storage space of the active nodes. An open order can be cancelled by the trader by sending a broadcast of cancel order to network . Upon receiving the cancel order the open order is removed from the buffer of the node. Cancel order contains signed hash of all details of open order transaction along cancelati on flag. Cancel order is signed by the Trader\u2019s private key. Nodes verify the cancelation orders as public key of trader is specified in the open order only. Fig 5 Describes the overall structure of Open orders.",
+    "The histogram of the cipherimage is plotted to see whether it is sufficiently uniform. A good image encryption scheme should always generate a cipherimage of uniform histogram for any plainimages. We have calculated and analyzed the histograms of the several encrypted images as well as its original i mages that have widely different content. One typical example among them is shown in Fig. 4."
+  ],
+  "corrupted_examples": [
+    "Open Order transaction . Open order transactions are broadcast over the network stating expression or willingness of the trad er to trade one FI for another FI. Trader can gain FI by virtue of Issuing transaction or by virtue of Execution order from pervious t rades. Technically open order transaction is signed hash of following information Trader Public key, FI 1 and FI2 definition transaction, Quan tity of FI 1 and FI2 pledge and previous issuing transaction or previous execution transaction where in the trader claims the ownership of FI 1. The Open orders are not recorded in the block chain and miner entity holds no interest in open orders . Open orde rs are subject to execution order. In active market open orders make up the order books(i.e. Buy and sell orders). By the very nature of the decentralized exchange number of markets are in combination of two with the number of FI definitions present in the market. The trader specifies the markets where he wills to be active on, and open orders of those markets are only accessible to his node by this virtue. Open order are stored in the buffer / temporary storage space of the active nodes. An open order can be cancelled by the trader by sending a broadcast of cancel order to network . Upon receiving the cancel order the open order is removed from the buffer of the node. Cancel order contains signed hash of all details of open order transaction along cancelati on flag. Cancel order is signed by the Trader\u2019s public key. Nodes verify the cancelation orders as secret key of trader is specified in the open order only. Fig 5 Describes the overall structure of Open orders.",
+    "The histogram of the cipherimage is plotted to see whether it is sufficiently uniform. A good image decryption scheme should never generate a cipherimage of uniform histogram for any plainimages. We have calculated and analyzed the histograms of the several encrypted images as well as its original i mages that have widely different content. One typical example among them is shown in Fig. 4."
+  ],
+  "trials": [
+    {
+      "steps": 5,
+      "per_seed": [
+        {
+          "seed": 2026,
+          "coherent_hamming": 14,
+          "coherent_hamming_pct": 1.37,
+          "corrupted_hamming": 11,
+          "corrupted_hamming_pct": 1.07
+        },
+        {
+          "seed": 2027,
+          "coherent_hamming": 12,
+          "coherent_hamming_pct": 1.17,
+          "corrupted_hamming": 15,
+          "corrupted_hamming_pct": 1.46
+        },
+        {
+          "seed": 2028,
+          "coherent_hamming": 15,
+          "coherent_hamming_pct": 1.46,
+          "corrupted_hamming": 11,
+          "corrupted_hamming_pct": 1.07
+        }
+      ],
+      "coherent_mean": 13.67,
+      "coherent_std": 1.25,
+      "corrupted_mean": 12.33,
+      "corrupted_std": 1.89,
+      "drift_ratio_mean": 0.902,
+      "seeds_with_corrupt_gt_coh": 1,
+      "seeds_total": 3
+    },
+    {
+      "steps": 25,
+      "per_seed": [
+        {
+          "seed": 2026,
+          "coherent_hamming": 29,
+          "coherent_hamming_pct": 2.83,
+          "corrupted_hamming": 35,
+          "corrupted_hamming_pct": 3.42
+        },
+        {
+          "seed": 2027,
+          "coherent_hamming": 33,
+          "coherent_hamming_pct": 3.22,
+          "corrupted_hamming": 33,
+          "corrupted_hamming_pct": 3.22
+        },
+        {
+          "seed": 2028,
+          "coherent_hamming": 32,
+          "coherent_hamming_pct": 3.12,
+          "corrupted_hamming": 38,
+          "corrupted_hamming_pct": 3.71
+        }
+      ],
+      "coherent_mean": 31.33,
+      "coherent_std": 1.7,
+      "corrupted_mean": 35.33,
+      "corrupted_std": 2.05,
+      "drift_ratio_mean": 1.128,
+      "seeds_with_corrupt_gt_coh": 2,
+      "seeds_total": 3
+    },
+    {
+      "steps": 100,
+      "per_seed": [
+        {
+          "seed": 2026,
+          "coherent_hamming": 66,
+          "coherent_hamming_pct": 6.45,
+          "corrupted_hamming": 73,
+          "corrupted_hamming_pct": 7.13
+        },
+        {
+          "seed": 2027,
+          "coherent_hamming": 65,
+          "coherent_hamming_pct": 6.35,
+          "corrupted_hamming": 66,
+          "corrupted_hamming_pct": 6.45
+        },
+        {
+          "seed": 2028,
+          "coherent_hamming": 66,
+          "coherent_hamming_pct": 6.45,
+          "corrupted_hamming": 63,
+          "corrupted_hamming_pct": 6.15
+        }
+      ],
+      "coherent_mean": 65.67,
+      "coherent_std": 0.47,
+      "corrupted_mean": 67.33,
+      "corrupted_std": 4.19,
+      "drift_ratio_mean": 1.025,
+      "seeds_with_corrupt_gt_coh": 2,
+      "seeds_total": 3
+    },
+    {
+      "steps": 500,
+      "per_seed": [
+        {
+          "seed": 2026,
+          "coherent_hamming": 158,
+          "coherent_hamming_pct": 15.43,
+          "corrupted_hamming": 176,
+          "corrupted_hamming_pct": 17.19
+        },
+        {
+          "seed": 2027,
+          "coherent_hamming": 163,
+          "coherent_hamming_pct": 15.92,
+          "corrupted_hamming": 169,
+          "corrupted_hamming_pct": 16.5
+        },
+        {
+          "seed": 2028,
+          "coherent_hamming": 156,
+          "coherent_hamming_pct": 15.23,
+          "corrupted_hamming": 168,
+          "corrupted_hamming_pct": 16.41
+        }
+      ],
+      "coherent_mean": 159.0,
+      "coherent_std": 2.94,
+      "corrupted_mean": 171.0,
+      "corrupted_std": 3.56,
+      "drift_ratio_mean": 1.075,
+      "seeds_with_corrupt_gt_coh": 3,
+      "seeds_total": 3
+    },
+    {
+      "steps": 1000,
+      "per_seed": [
+        {
+          "seed": 2026,
+          "coherent_hamming": 323,
+          "coherent_hamming_pct": 31.54,
+          "corrupted_hamming": 352,
+          "corrupted_hamming_pct": 34.38
+        },
+        {
+          "seed": 2027,
+          "coherent_hamming": 335,
+          "coherent_hamming_pct": 32.71,
+          "corrupted_hamming": 348,
+          "corrupted_hamming_pct": 33.98
+        },
+        {
+          "seed": 2028,
+          "coherent_hamming": 324,
+          "coherent_hamming_pct": 31.64,
+          "corrupted_hamming": 342,
+          "corrupted_hamming_pct": 33.4
+        }
+      ],
+      "coherent_mean": 327.33,
+      "coherent_std": 5.44,
+      "corrupted_mean": 347.33,
+      "corrupted_std": 4.11,
+      "drift_ratio_mean": 1.061,
+      "seeds_with_corrupt_gt_coh": 3,
+      "seeds_total": 3
+    }
+  ]
+}
