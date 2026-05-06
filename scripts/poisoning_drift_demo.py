@@ -76,6 +76,26 @@ from rag_sign.model_fingerprint import hamming_distance  # noqa: E402
 
 DEFAULT_MODEL = "gpt2"
 
+# Independent probe set drawn from domains orthogonal to BOTH the
+# coherent (cryptography) and contradictory (geography / physics /
+# basic facts) corpora.  Used to test whether the early-step
+# poisoning amplification reflects probe-overlap with the
+# contradictory corpus, or whether it survives when probes are
+# topically disjoint.  Domains: cooking, music, sports, health,
+# meteorology, art, biology, marine biology, dance, photography.
+INDEPENDENT_PROBES: tuple[str, ...] = (
+    "To make sourdough bread, you need to",
+    "The orchestra played the symphony in",
+    "The midfielder passed the ball to the",
+    "Patients with high blood pressure should avoid",
+    "Cumulonimbus clouds typically form when",
+    "The artist painted the landscape using",
+    "During photosynthesis, plants convert",
+    "The marathon runner trained by",
+    "Beneath the ocean waves, dolphins use",
+    "The photographer adjusted the aperture to",
+)
+
 RESULTS_PATH = (
     Path(__file__).resolve().parent.parent
     / "bench_results"
@@ -189,8 +209,32 @@ def main() -> int:
         "--fp-dim", type=int, default=DEFAULT_FP_DIM,
         help="behavioural fingerprint dimension; larger may delay saturation",
     )
+    parser.add_argument(
+        "--probe-set",
+        choices=("original", "independent"),
+        default="original",
+        help=(
+            "'original' = the 10-probe set defined in finetune_simhash_demo "
+            "(some semantic overlap with the contradictory corpus); "
+            "'independent' = 10 probes drawn from domains orthogonal to "
+            "both the coherent and contradictory corpora.  Use the "
+            "independent set to check whether the early-step "
+            "amplification is a probe-overlap artefact."
+        ),
+    )
+    parser.add_argument(
+        "--results-suffix",
+        default="",
+        help="appended to the result filename to keep separate runs distinct",
+    )
     parser.add_argument("--lr", type=float, default=5e-5)
     args = parser.parse_args()
+
+    probes = INDEPENDENT_PROBES if args.probe_set == "independent" else _PROBES
+    results_path = (
+        RESULTS_PATH.parent
+        / f"poisoning_drift_demo{args.results_suffix}.json"
+    )
 
     device = _select_device()
     print(f"Device: {device}")
@@ -201,10 +245,11 @@ def main() -> int:
         tokenizer.pad_token = tokenizer.eos_token
     base = AutoModelForCausalLM.from_pretrained(args.model)
 
+    print(f"Probe set: {args.probe_set} ({len(probes)} probes)")
     print("Computing baseline behavioural fingerprint …")
     t0 = time.perf_counter()
     fp_base = fingerprint_behavioral(
-        base, tokenizer, device=device, dim=args.fp_dim
+        base, tokenizer, device=device, dim=args.fp_dim, probes=probes
     )
     print(f"  {len(fp_base)*8} bits in {time.perf_counter() - t0:.1f}s")
 
@@ -215,7 +260,9 @@ def main() -> int:
         "seeds": list(args.seeds),
         "lr": args.lr,
         "device": str(device),
-        "n_probes": len(_PROBES),
+        "n_probes": len(probes),
+        "probe_set": args.probe_set,
+        "probes": list(probes),
         "corpora": {
             "coherent_examples": COHERENT_CORPUS[:5],
             "contradictory_examples": CONTRADICTORY_CORPUS[:5],
@@ -245,7 +292,8 @@ def main() -> int:
                 )
                 ft_seconds = time.perf_counter() - t0
                 fp = fingerprint_behavioral(
-                    model, tokenizer, device=device, dim=args.fp_dim
+                    model, tokenizer, device=device,
+                    dim=args.fp_dim, probes=probes,
                 )
                 h = hamming_distance(fp_base, fp)
                 h_pct = h * 100.0 / (len(fp_base) * 8)
@@ -288,9 +336,9 @@ def main() -> int:
         )
         results["trials"].append(trial)
 
-    RESULTS_PATH.parent.mkdir(exist_ok=True)
-    RESULTS_PATH.write_text(json.dumps(results, indent=2), encoding="utf-8")
-    print(f"\nWrote {RESULTS_PATH}")
+    results_path.parent.mkdir(exist_ok=True)
+    results_path.write_text(json.dumps(results, indent=2), encoding="utf-8")
+    print(f"\nWrote {results_path}")
     return 0
 
 
