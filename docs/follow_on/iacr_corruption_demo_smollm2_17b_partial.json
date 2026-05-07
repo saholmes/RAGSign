@@ -1,0 +1,52 @@
+{
+  "model": "HuggingFaceTB/SmolLM2-1.7B-Instruct",
+  "n_parameters": 1711376384,
+  "fingerprint_bits": 1024,
+  "dtype": "bfloat16",
+  "lr": 5e-05,
+  "device": "mps",
+  "n_probes": 15,
+  "probe_set": "crypto-specific",
+  "source_years": [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021],
+  "n_paragraphs": 100,
+  "min_substitutions_per_para": 1,
+  "median_substitutions_per_para": 1,
+  "status": "partial — terminated due to memory pressure / swap thrashing on 16 GiB host",
+  "trials": [
+    {
+      "steps": 5,
+      "complete": true,
+      "per_seed": [
+        {"seed": 2026, "coherent_hamming": 23, "corrupted_hamming": 24},
+        {"seed": 2027, "coherent_hamming": 19, "corrupted_hamming": 21},
+        {"seed": 2028, "coherent_hamming": 25, "corrupted_hamming": 23}
+      ],
+      "coherent_mean": 22.33,
+      "coherent_std": 2.49,
+      "corrupted_mean": 22.67,
+      "corrupted_std": 1.25,
+      "drift_ratio_mean": 1.015,
+      "seeds_with_corrupt_gt_coh": 2,
+      "seeds_total": 3
+    },
+    {
+      "steps": 25,
+      "complete": false,
+      "per_seed": [
+        {"seed": 2026, "coherent_hamming": 76, "corrupted_hamming": 74},
+        {"seed": 2027, "coherent_hamming": 74, "corrupted_hamming": 75},
+        {"seed": 2028, "coherent_hamming": 83, "corrupted_hamming": null}
+      ],
+      "note": "seed=2028 corrupted trial terminated mid-run; partial means reflect 2-of-3 paired comparisons",
+      "coherent_mean_partial": 77.67,
+      "corrupted_mean_partial": 74.5,
+      "seeds_with_corrupt_gt_coh_partial": 1,
+      "seeds_paired": 2
+    }
+  ],
+  "notes": [
+    "Per-trial fine-tune time on 1.7B-bf16 was ~330-430s for 5 steps and ~2400-3000s for 25 steps -- 13x and ~60x slower than the linear-from-360M projection due to swap activity (system has 16 GiB RAM; PyTorch AdamW maintains fp32 master state alongside bf16 model weights, doubling memory pressure).",
+    "Completing the 100-step row would have required ~10 hours of wall time per trial; the 500-step row would have required ~50 hours per trial -- infeasible on this hardware.",
+    "Conclusion at this configuration: rho(1.7B, bf16, lr=5e-5) appears not larger than rho(SmolLM2-360M, fp32, lr=5e-5) in the 5-25 step regime.  Whether this represents a genuine plateau, a dtype-induced artefact, or a need for larger-step measurement remains open."
+  ]
+}

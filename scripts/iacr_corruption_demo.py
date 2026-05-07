@@ -264,7 +264,19 @@ def main() -> int:
         help="paragraphs admitting fewer than this many corruptions are skipped",
     )
     parser.add_argument("--lr", type=float, default=5e-5)
+    parser.add_argument(
+        "--dtype",
+        choices=("float32", "float16", "bfloat16"),
+        default="float32",
+        help="model parameter dtype.  bfloat16 halves memory and is "
+             "stable for fine-tuning at >=1B parameter scale.",
+    )
     args = parser.parse_args()
+    torch_dtype = {
+        "float32": torch.float32,
+        "float16": torch.float16,
+        "bfloat16": torch.bfloat16,
+    }[args.dtype]
 
     device = _select_device()
     print(f"Device: {device}")
@@ -283,11 +295,16 @@ def main() -> int:
           f"(median {sorted(n_subs)[len(n_subs)//2]} subs / paragraph; "
           f"min {min(n_subs)}, max {max(n_subs)})")
 
-    print(f"Loading {args.model} …")
+    print(f"Loading {args.model} ({args.dtype}) …")
     tokenizer = AutoTokenizer.from_pretrained(args.model)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
-    base = AutoModelForCausalLM.from_pretrained(args.model)
+    base = AutoModelForCausalLM.from_pretrained(args.model, dtype=torch_dtype)
+    # Snapshot the state_dict on CPU so we can reset between trials
+    # without paying the load cost each time.  CPU dict is safe to
+    # share across MPS resets.
+    print("  snapshotting baseline state_dict for fast trial reset …")
+    base_state = {k: v.detach().clone().cpu() for k, v in base.state_dict().items()}
 
     print("Computing baseline behavioural fingerprint over crypto probes …")
     t0 = time.perf_counter()
@@ -326,7 +343,10 @@ def main() -> int:
                 ("coherent",  coherent),
                 ("corrupted", corrupted),
             ]:
-                model = AutoModelForCausalLM.from_pretrained(args.model)
+                # Reset to baseline weights via state_dict (fast: ~seconds
+                # for 1.7B vs ~minutes from disk).
+                base.load_state_dict(base_state, strict=True)
+                model = base
                 t0 = time.perf_counter()
                 _finetune_corpus(
                     model, tokenizer, corpus, n_steps,
@@ -349,7 +369,6 @@ def main() -> int:
                     coh_h.append(h)
                 else:
                     cor_h.append(h)
-                del model
                 if device.type == "mps":
                     torch.mps.empty_cache()
             trial["per_seed"].append(seed_record)
