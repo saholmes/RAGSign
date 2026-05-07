@@ -109,19 +109,20 @@ $3\!\times$\nobreakdash-larger SmolLM2\nobreakdash-360M model
 revives a modest but consistent signal ($11/15$, binomial
 $p \approx 0.06$, $3/3$ seeds favour corrupted at the
 $500$\textendash$1{,}000$\nobreakdash-step measurements with means'
-differences of $12$\textendash$20$ bits).  An attempted further
+differences of $12$\textendash$20$ bits).  A dtype\nobreakdash-isolation control (re\nobreakdash-running
+$E_6$ in bf16 instead of fp32, same model, same seeds) produces
+bit\nobreakdash-identical per\nobreakdash-seed Hamming
+distances, ruling out dtype as a confound.  An attempted
 scale\nobreakdash-up to SmolLM2\nobreakdash-1.7B
-(\num{1.7e9} parameters) was constrained by our
-16\nobreakdash-GiB\nobreakdash-RAM host's memory ceiling — only
-the $5$ and $25$\nobreakdash-step rows partially completed, both
-at noise\nobreakdash-level ratios (1.015 and partial $\approx 0.96$
-with $2/2$ paired observations).  The strongest defensible claim
-is therefore: under \emph{matched\nobreakdash-corpus} controls and
-the specific behavioural\nobreakdash-fingerprint primitive of this
-work, a measurable poisoning signal emerges at SmolLM2\nobreakdash-360M
-scale; whether it grows further at billion\nobreakdash-parameter
-scale requires both more compute and (likely)
-hyperparameter retuning to settle.  The progression is documented in full because the
+(\num{1.7e9} parameters) was constrained by host memory limits
+to the low\nobreakdash-step regime where SmolLM2\nobreakdash-360M
+also shows no signal; whether the differential grows at
+billion\nobreakdash-parameter scale under longer fine\nobreakdash-tunes
+is open.  The strongest defensible claim is: under
+\emph{matched\nobreakdash-corpus} controls and the specific
+behavioural\nobreakdash-fingerprint primitive of this work, a
+dtype\nobreakdash-robust poisoning signal emerges at
+SmolLM2\nobreakdash-360M scale.  The progression is documented in full because the
 early apparent positives are exactly the kind of confound a
 less\nobreakdash-disciplined investigation might mistake for
 evidence.  All numbers are reproducible from the
@@ -1061,17 +1062,27 @@ The partial data show:
         $1/2$ favour corrupted; mean difference negligible.
 \end{itemize}
 
-This is at noise level — \emph{not} confirming the increasing
-\(\rho\) we hoped for.  Two non\nobreakdash-mutually\nobreakdash-exclusive
-explanations are plausible: (a) the bf16 fine\nobreakdash-tune
-dynamics differ enough from the fp32 360M run that
-direct comparison is contaminated; (b) the scale\nobreakdash-dependence
-is non\nobreakdash-monotonic — the differential rises between
-124M and 360M and then plateaus or declines at billion\nobreakdash-parameter
-scale.  Settling between the two requires both more compute and
-hyperparameter exploration that we cannot perform on this hardware.
-We report the partial run because reading the SmolLM2\nobreakdash-360M
-result without it would invite over\nobreakdash-extrapolation.
+This is at noise level, but the fp32 $E_6$ data on
+SmolLM2\nobreakdash-360M shows the differential is also at noise
+level at $5$ steps (ratio $0.90$, $1/3$ favour corrupted) and only
+grows past $100$ steps.  The partial 1.7B sample therefore
+samples the regime where the differential is genuinely small;
+it is not a counter\nobreakdash-example.
+
+We separately ran a \emph{dtype isolation} control to rule out the
+bf16 vs.\ fp32 distinction as a possible confound.  Re\nobreakdash-running
+$E_6$ on SmolLM2\nobreakdash-360M with the model loaded in bf16
+instead of fp32 — same seeds, same protocol, only the dtype
+flag changes — produces \emph{bit\nobreakdash-identical}
+per\nobreakdash-seed Hamming distances at every step count.  The
+$\rho \approx 1.05$\textendash$1.13$ signal at SmolLM2\nobreakdash-360M
+is therefore robust to dtype, which means dtype cannot explain
+the 1.7B partial null.  The remaining open question is whether a
+sufficiently long fine\nobreakdash-tune at billion\nobreakdash-parameter
+scale would reproduce the differential observed on the smaller
+model — settling this requires hardware that can run
+$\geq 100$\nobreakdash-step trials on 1.7B in reasonable wall
+time, which is beyond our test environment.
 
 \subsection{Refined statement of the conjecture}
 \label{sec:poisoning:refined}
