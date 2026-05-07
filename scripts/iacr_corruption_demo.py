@@ -57,13 +57,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import torch  # type: ignore[import-untyped]
-from transformers import (  # type: ignore[import-untyped]
-    AutoModelForCausalLM,
-    AutoTokenizer,
-)
-
 from finetune_simhash_demo import (  # type: ignore[no-redef]  # noqa: E402
-    DEFAULT_FP_DIM,
     _select_device,
     fingerprint_behavioral,
 )
@@ -72,6 +66,11 @@ from iacr_poisoning_demo import (  # noqa: E402
     _split_paragraphs,
 )
 from poisoning_drift_demo import _finetune_corpus  # noqa: E402
+from transformers import (  # type: ignore[import-untyped]
+    AutoModelForCausalLM,
+    AutoTokenizer,
+)
+
 from rag_sign.model_fingerprint import hamming_distance  # noqa: E402
 
 DEFAULT_MODEL = "gpt2"
@@ -383,7 +382,7 @@ def main() -> int:
             )
         else:
             trial["drift_ratio_mean"] = None
-        n_favoured = sum(1 for c, k in zip(cor_h, coh_h) if c > k)
+        n_favoured = sum(1 for c, k in zip(cor_h, coh_h, strict=True) if c > k)
         trial["seeds_with_corrupt_gt_coh"] = n_favoured
         trial["seeds_total"] = len(args.seeds)
         print(

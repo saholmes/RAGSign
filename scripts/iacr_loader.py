@@ -49,9 +49,51 @@ class IACRPaper:
 
 
 def _resolve_paths() -> tuple[Path, Path]:
-    data = Path(os.environ.get("RAG_SIGN_IACR_DATA", DEFAULT_DATA_ROOT))
+    """Resolve data + cache paths, syncing from R2 first if configured.
+
+    Three environment variables drive the behaviour:
+
+    * ``RAG_SIGN_IACR_DATA``       — local PDF root, OR an
+        ``r2://bucket/prefix`` URI.  When the value is an R2 URI the
+        PDFs are downloaded once into ``$RAG_SIGN_R2_PDF_STAGING`` (or
+        a sensible default under the cache directory) and that local
+        mirror becomes the data root for the rest of the run.
+    * ``RAG_SIGN_IACR_CACHE``      — local text-cache root.  Always a
+        local path; this is where extracted text lands.
+    * ``RAG_SIGN_TEXT_CACHE_R2``   — optional ``r2://bucket/prefix``
+        URI of an existing extracted-text cache.  When set, the
+        cache is synced from R2 *before* iteration starts so the
+        pipeline skips PDF parsing entirely on the local host.
+
+    Setting both ``RAG_SIGN_IACR_DATA`` (pointing at PDFs) and
+    ``RAG_SIGN_TEXT_CACHE_R2`` is supported but redundant — the text
+    cache wins because it is cheaper.
+    """
     cache = Path(os.environ.get("RAG_SIGN_IACR_CACHE", DEFAULT_CACHE_ROOT))
     cache.mkdir(parents=True, exist_ok=True)
+
+    # Cheap path: pull a pre-extracted text cache straight from R2.
+    text_cache_r2 = os.environ.get("RAG_SIGN_TEXT_CACHE_R2")
+    if text_cache_r2:
+        from rag_sign.r2_sync import sync_to_local
+        sync_to_local(text_cache_r2, cache)
+
+    # Data root: local path or r2:// URI.
+    data_env = os.environ.get("RAG_SIGN_IACR_DATA", str(DEFAULT_DATA_ROOT))
+    if data_env.startswith("r2://"):
+        from rag_sign.r2_sync import sync_to_local
+        staging = Path(
+            os.environ.get(
+                "RAG_SIGN_R2_PDF_STAGING",
+                str(cache.parent / "iacr_pdfs"),
+            )
+        )
+        staging.mkdir(parents=True, exist_ok=True)
+        sync_to_local(data_env, staging)
+        data = staging
+    else:
+        data = Path(data_env)
+
     return data, cache
 
 

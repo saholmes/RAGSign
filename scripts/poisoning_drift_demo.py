@@ -325,7 +325,7 @@ def main() -> int:
         else:
             trial["drift_ratio_mean"] = None
         # Sign-test summary: how often is contra > coh across seeds?
-        n_favoured = sum(1 for c, k in zip(con_hammings, coh_hammings) if c > k)
+        n_favoured = sum(1 for c, k in zip(con_hammings, coh_hammings, strict=True) if c > k)
         trial["seeds_with_contra_gt_coh"] = n_favoured
         trial["seeds_total"] = len(args.seeds)
         print(
