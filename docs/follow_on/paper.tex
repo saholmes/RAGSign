@@ -1105,10 +1105,13 @@ empirical evidence supports a more conservative claim:
   beyond an initial transient.  Empirically,
   $\rho(\text{GPT-2 small}) \approx 1.0$ (no detectable signal),
   $\rho(\text{SmolLM2-360M}) \approx 1.05\text{--}1.13$, and
-  $\rho(\text{Llama-3.2-3B, Q4 LoRA}) \approx 1.0\text{--}1.2$
-  under the independent\nobreakdash-probe control
-  (Section~\ref{sec:poisoning:lessons}, $E_1$\textendash$E_2$
-  confound).
+  $\rho(\text{Llama-3.2-3B, Q4 LoRA}) \in [0.85, 1.07]$ for
+  rank $\leq 16$ and $\rho \approx 1.29$ at rank $32$ under
+  the independent\nobreakdash-probe control
+  (Table~\ref{tab:poisoning:rank-sweep}); the
+  rank\nobreakdash-dependence indicates the LoRA channel
+  capacity gates how much prior\nobreakdash-strength asymmetry
+  can manifest.
 \end{property}
 
 The refined conjecture is consistent with the geometric
@@ -1147,13 +1150,87 @@ $\sim\!25\!\times$ the GPT\nobreakdash-2 parameter count and
 under the production\nobreakdash-realistic LoRA fine\nobreakdash-tune
 regime.  Notably, the $E_3$ prior\nobreakdash-strength asymmetry
 that survived independent\nobreakdash-probe filtering at
-GPT\nobreakdash-2 does \emph{not} re\nobreakdash-emerge at 3B Q4 LoRA:
-the $\rho$\nobreakdash-ratio is at noise level once probes are
-disjoint.  We tentatively read this as the constrained\nobreakdash-rank
-LoRA channel limiting how much prior\nobreakdash-strength
-asymmetry can manifest in weight movement; full
-fine\nobreakdash-tuning at the same scale is the appropriate
-control to confirm this reading.
+GPT\nobreakdash-2 is muted at rank~$8$ on 3B Q4 LoRA: the
+$\rho$\nobreakdash-ratio is at noise level once probes are
+disjoint.  This pointed at the constrained LoRA channel as a
+candidate suppressor of prior\nobreakdash-strength asymmetry
+relative to full fine\nobreakdash-tuning, which we tested directly
+with a rank sweep.
+
+\paragraph{Rank sweep at Llama-3.2-3B (Q4 LoRA).}
+We swept LoRA rank $\in \{4, 8, 16, 32\}$ at fixed
+$25$\nobreakdash-iter fine\nobreakdash-tune budget under both
+probe sets, with the same $3$\nobreakdash-seed averaging.  Two
+qualitatively different scaling laws separate the
+probe\nobreakdash-overlap artefact from any residual real
+differential:
+
+\begin{table}[h]
+\centering
+\small
+\caption{Llama\nobreakdash-3.2\nobreakdash-3B Q4 LoRA, $25$ iters,
+$3$ seeds.  Drift Hamming over $512$\nobreakdash-bit behavioural
+fingerprint; $\rho = \mu_{\mathrm{con}}/\mu_{\mathrm{coh}}$;
+``sign'' is paired observations favouring contradictory.}
+\label{tab:poisoning:rank-sweep}
+\begin{tabular}{r l r r r r}
+\toprule
+\textbf{Rank} & \textbf{Probes} & $\bm{\mu_{\mathrm{coh}}}$ & $\bm{\mu_{\mathrm{con}}}$ & $\bm{\rho}$ & \textbf{sign} \\
+\midrule
+ 4 & original    &  9.3  $\pm$ 1.9 & 19.3 $\pm$ 3.7 & 2.07 & 3/3 \\
+ 8 & original    & 10.7  $\pm$ 1.3 & 22.0 $\pm$ 1.4 & 2.06 & 3/3 \\
+16 & original    & 12.0  $\pm$ 0.8 & 27.0 $\pm$ 1.6 & 2.25 & 3/3 \\
+32 & original    & 22.7  $\pm$ 6.0 & 43.7 $\pm$ 6.9 & 1.93 & 3/3 \\
+\addlinespace
+ 4 & independent &  9.0  $\pm$ 0.0 &  7.7 $\pm$ 0.5 & 0.85 & 0/3 \\
+ 8 & independent &  9.0  $\pm$ 0.8 &  9.7 $\pm$ 1.9 & 1.07 & 2/3 \\
+16 & independent &  8.7  $\pm$ 0.5 &  8.7 $\pm$ 0.5 & 1.00 & 1/3 \\
+32 & independent & 24.0  $\pm$ 5.0 & 31.0 $\pm$ 5.4 & \textbf{1.29} & 2/3 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The original\nobreakdash-probe ratio is essentially
+\emph{rank\nobreakdash-invariant} at $\rho \approx 2$: both
+columns scale roughly linearly with LoRA capacity, but the gap
+between them does not.  The independent\nobreakdash-probe ratio
+is \emph{rank\nobreakdash-dependent}: noise level
+($\rho \in [0.85, 1.07]$, $0$\textendash$2$ of $3$ seeds) for
+ranks $4$\textendash$16$, with a step up at rank $32$
+($\rho \approx 1.29$, $2/3$ seeds).  Critically, the absolute
+drift values at rank $32$ also triple under the independent
+probes (from ${\sim}\,9$ to ${\sim}\,24$\textendash$31$ bits),
+indicating that the LoRA channel is now wide enough to allow
+contradictions to propagate to topically\nobreakdash-disjoint
+outputs at all.
+
+The two scaling laws are strong evidence that two distinct
+mechanisms are at play.  The artefact (probe\nobreakdash-overlap
+memorisation) is a bounded property of the training signal:
+contradictions about specific facts move the logits at probes
+that test those facts, in proportion to LoRA capacity, but the
+ratio of contradictory to coherent movement stays fixed because
+both directions memorise at the same rate.  The
+prior\nobreakdash-strength asymmetry conjectured by Property~$1$
+is suppressed by the constrained LoRA channel below rank $\sim 32$;
+above it, a real but small differential ($\rho \approx 1.3$,
+$2/3$ seeds — at the edge of single\nobreakdash-trial significance)
+emerges and presumably grows toward the full\nobreakdash-fine\nobreakdash-tune
+limit.  This refines, rather than refutes, the
+$1.7$B walk\nobreakdash-back: the differential exists but
+requires both topically\nobreakdash-disjoint probes and
+sufficient training\nobreakdash-channel capacity to distinguish
+from the artefact.
+
+The deployment recommendation
+(Section~\ref{sec:poisoning:implication}) is unchanged: the gate
+remains a fine\nobreakdash-tune \emph{detector}, not a
+poisoning detector at deployment\nobreakdash-grade signal levels.
+Reaching rank~$32$ on a 3B base requires roughly
+$\num{24}\,\mathrm{M}$ trainable parameters
+(${\sim}\,0.7\%$ of the model); a deployment that whitelisted
+LoRA fine\nobreakdash-tunes up to that capacity would not see a
+$1.29\!\times$ ratio as actionable in any case.
 
 \subsection{What the apparent positives revealed}
 \label{sec:poisoning:lessons}
