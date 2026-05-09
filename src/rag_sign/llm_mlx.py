@@ -276,9 +276,29 @@ def lora_finetune(
     train_jsonl.write_text(payload, encoding="utf-8")
     valid_jsonl.write_text(payload, encoding="utf-8")
 
+    # mlx-lm 0.20+ exposes LoRA hyperparameters (rank, dropout, scale)
+    # *only* through a YAML config file passed via `-c`, not via
+    # individual CLI flags.  Write a minimal config in the cell's
+    # workdir and reference it.  CLI args (--iters, --batch-size, ...)
+    # override matching YAML keys, so we keep the rest as flags.
+    #
+    # The default `scale` is 20.0 in mlx-lm's `CONFIG_DEFAULTS`; we
+    # mirror it so the rank=8 default-equivalent path produces
+    # numerically-identical results to a no-`-c` invocation.
+    config_path = out_dir / "lora_config.yaml"
+    config_path.write_text(
+        "fine_tune_type: lora\n"
+        "lora_parameters:\n"
+        f"  rank: {rank}\n"
+        "  dropout: 0.0\n"
+        "  scale: 20.0\n",
+        encoding="utf-8",
+    )
+
     train_cmd = [
         sys.executable, "-m", "mlx_lm.lora",
         "--train",
+        "-c",              str(config_path),
         "--model",         base_model_id,
         "--data",          str(data_dir),
         "--iters",         str(iters),
@@ -292,8 +312,6 @@ def lora_finetune(
         "--steps-per-eval", str(iters * 2),
         "--val-batches",   "0",
     ]
-    if rank != 8:  # mlx-lm's default; only forward when overriding
-        train_cmd += ["--lora-parameters", json.dumps({"rank": rank})]
     subprocess.run(train_cmd, check=True)
 
     fuse_cmd = [
