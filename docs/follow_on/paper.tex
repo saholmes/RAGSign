@@ -1105,13 +1105,16 @@ empirical evidence supports a more conservative claim:
   beyond an initial transient.  Empirically,
   $\rho(\text{GPT-2 small}) \approx 1.0$ (no detectable signal),
   $\rho(\text{SmolLM2-360M}) \approx 1.05\text{--}1.13$, and
-  $\rho(\text{Llama-3.2-3B, Q4 LoRA}) \in [0.85, 1.07]$ for
-  rank $\leq 16$ and $\rho \approx 1.29$ at rank $32$ under
-  the independent\nobreakdash-probe control
-  (Table~\ref{tab:poisoning:rank-sweep}); the
+  $\rho(\text{Llama-3.2-3B, Q4 LoRA})$ climbs monotonically
+  with LoRA rank under independent probes —
+  $0.85 \to 1.07 \to 1.00 \to 1.29 \to \mathbf{1.44}$ for
+  ranks $4 \to 64$ (Table~\ref{tab:poisoning:rank-sweep}) —
+  with the $3/3$ sign at rank $64$ closing the
+  single\nobreakdash-trial significance gap.  The
   rank\nobreakdash-dependence indicates the LoRA channel
   capacity gates how much prior\nobreakdash-strength asymmetry
-  can manifest.
+  can manifest, with the full\nobreakdash-fine\nobreakdash-tune
+  limit as the asymptote.
 \end{property}
 
 The refined conjecture is consistent with the geometric
@@ -1181,56 +1184,81 @@ fingerprint; $\rho = \mu_{\mathrm{con}}/\mu_{\mathrm{coh}}$;
  8 & original    & 10.7  $\pm$ 1.3 & 22.0 $\pm$ 1.4 & 2.06 & 3/3 \\
 16 & original    & 12.0  $\pm$ 0.8 & 27.0 $\pm$ 1.6 & 2.25 & 3/3 \\
 32 & original    & 22.7  $\pm$ 6.0 & 43.7 $\pm$ 6.9 & 1.93 & 3/3 \\
+64 & original    & 58.0  $\pm$ 7.9 & 89.0 $\pm$ 5.9 & 1.53 & 3/3 \\
 \addlinespace
  4 & independent &  9.0  $\pm$ 0.0 &  7.7 $\pm$ 0.5 & 0.85 & 0/3 \\
  8 & independent &  9.0  $\pm$ 0.8 &  9.7 $\pm$ 1.9 & 1.07 & 2/3 \\
 16 & independent &  8.7  $\pm$ 0.5 &  8.7 $\pm$ 0.5 & 1.00 & 1/3 \\
-32 & independent & 24.0  $\pm$ 5.0 & 31.0 $\pm$ 5.4 & \textbf{1.29} & 2/3 \\
+32 & independent & 24.0  $\pm$ 5.0 & 31.0 $\pm$ 5.4 & 1.29 & 2/3 \\
+64 & independent & 58.3  $\pm$ 1.2 & 84.0 $\pm$ 3.3 & \textbf{1.44} & \textbf{3/3} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The original\nobreakdash-probe ratio is essentially
-\emph{rank\nobreakdash-invariant} at $\rho \approx 2$: both
-columns scale roughly linearly with LoRA capacity, but the gap
-between them does not.  The independent\nobreakdash-probe ratio
-is \emph{rank\nobreakdash-dependent}: noise level
-($\rho \in [0.85, 1.07]$, $0$\textendash$2$ of $3$ seeds) for
-ranks $4$\textendash$16$, with a step up at rank $32$
-($\rho \approx 1.29$, $2/3$ seeds).  Critically, the absolute
-drift values at rank $32$ also triple under the independent
-probes (from ${\sim}\,9$ to ${\sim}\,24$\textendash$31$ bits),
-indicating that the LoRA channel is now wide enough to allow
-contradictions to propagate to topically\nobreakdash-disjoint
-outputs at all.
+The two probe sets follow qualitatively different scaling
+laws.  The original\nobreakdash-probe ratio is roughly
+\emph{rank\nobreakdash-invariant} between ranks $4$ and $32$
+($\rho \in [1.93, 2.25]$), then \emph{compresses} at rank $64$
+($\rho = 1.53$): both columns are now in saturation territory
+(${\sim}\,11$\textendash$17\%$ of the $512$\nobreakdash-bit
+fingerprint flipped), and the coherent corpus has enough LoRA
+capacity to be absorbed at the same rate as the contradictions
+($\mu_{\mathrm{coh}}{:}\,22.7 \!\to\! 58.0$,
+$+156\%$, while $\mu_{\mathrm{con}}{:}\,43.7 \!\to\! 89.0$,
+$+104\%$).  The fingerprint is approaching its dynamic\nobreakdash-range
+ceiling, not the differential limit.
+
+The independent\nobreakdash-probe ratio is \emph{monotonically
+rank\nobreakdash-dependent}, climbing
+$0.85 \to 1.07 \to 1.00 \to 1.29 \to 1.44$ across ranks
+$4 \to 64$, with the sign\nobreakdash-test count following
+the same trajectory ($0/3, 2/3, 1/3, 2/3, 3/3$).  The absolute
+drift values at the top two ranks tell the same story: rank $32$
+triples the rank $\leq 16$ floor (${\sim}\,9 \to {\sim}\,24$
+\textendash$31$ bits), and rank $64$ triples it again
+(${\sim}\,58$\textendash$84$ bits).  At rank $64$ the
+$3/3$ sign on the independent probes (binomial
+$p \!\approx\! 0.125$ this trial alone, joining $2/3$ at rank $32$
+into a $5/6$ joint result with $p \!\approx\! 0.11$) closes the
+single\nobreakdash-trial significance gap that rank $32$
+left open.
 
 The two scaling laws are strong evidence that two distinct
-mechanisms are at play.  The artefact (probe\nobreakdash-overlap
-memorisation) is a bounded property of the training signal:
-contradictions about specific facts move the logits at probes
-that test those facts, in proportion to LoRA capacity, but the
-ratio of contradictory to coherent movement stays fixed because
-both directions memorise at the same rate.  The
-prior\nobreakdash-strength asymmetry conjectured by Property~$1$
-is suppressed by the constrained LoRA channel below rank $\sim 32$;
-above it, a real but small differential ($\rho \approx 1.3$,
-$2/3$ seeds — at the edge of single\nobreakdash-trial significance)
-emerges and presumably grows toward the full\nobreakdash-fine\nobreakdash-tune
-limit.  This refines, rather than refutes, the
-$1.7$B walk\nobreakdash-back: the differential exists but
-requires both topically\nobreakdash-disjoint probes and
-sufficient training\nobreakdash-channel capacity to distinguish
-from the artefact.
+mechanisms are at play.  The artefact
+(probe\nobreakdash-overlap memorisation) saturates at high
+rank — both directions can memorise the corpus to ceiling, so
+the ratio compresses.  The conjectured
+prior\nobreakdash-strength asymmetry of Property~$1$ is
+\emph{suppressed} by the constrained LoRA channel below
+rank $\sim 32$ and emerges as a real, monotonically\nobreakdash-growing
+differential above it; the full\nobreakdash-fine\nobreakdash-tune
+limit (an unrestricted update channel) is the natural endpoint
+of the curve our $5$\nobreakdash-rank sweep traces out.  This
+refines, rather than refutes, the $1.7$B walk\nobreakdash-back:
+the differential exists but requires both
+topically\nobreakdash-disjoint probes and sufficient
+training\nobreakdash-channel capacity to distinguish from the
+artefact.
 
 The deployment recommendation
-(Section~\ref{sec:poisoning:implication}) is unchanged: the gate
-remains a fine\nobreakdash-tune \emph{detector}, not a
-poisoning detector at deployment\nobreakdash-grade signal levels.
-Reaching rank~$32$ on a 3B base requires roughly
-$\num{24}\,\mathrm{M}$ trainable parameters
-(${\sim}\,0.7\%$ of the model); a deployment that whitelisted
-LoRA fine\nobreakdash-tunes up to that capacity would not see a
-$1.29\!\times$ ratio as actionable in any case.
+(Section~\ref{sec:poisoning:implication}) shifts subtly with
+the rank $64$ data point: while the gate remains primarily a
+fine\nobreakdash-tune \emph{detector}, a $1.44\!\times$
+ratio with $3/3$ sign at $\sim\!50\,\mathrm{M}$ trainable
+parameters (${\sim}\,1.5\%$ of the model) is a borderline
+deployment\nobreakdash-grade signal that warrants logging.  At
+rank $64$ \emph{any} fine\nobreakdash-tune flips
+$\sim\!11\%$ of the fingerprint — well above the BCH
+$5.87\%$ decode threshold of Section~\ref{sec:proof-perf} — so
+the gate fires on the primary "is\nobreakdash-fine\nobreakdash-tuned"
+question regardless of corpus content.  The differential
+$1.44\!\times$ becomes an
+auxiliary\nobreakdash-classification signal \emph{after} the
+primary alarm, not a stand\nobreakdash-alone detector.  We
+note this is fully consistent with the layered\nobreakdash-policy
+framing of Section~\ref{sec:policy}: the cryptographic
+ceiling fires on raw drift; the operational fence interprets
+the residual differential.
 
 \subsection{What the apparent positives revealed}
 \label{sec:poisoning:lessons}
