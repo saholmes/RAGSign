@@ -42,6 +42,16 @@ hsm = [
 llm = [
     "llama-cpp-python>=0.3",     # Llama 3.2 inference
 ]
+mlx = [
+    # Apple-Silicon-native LLM backend.  Lets the model-fingerprint
+    # sweep reach 7B–14B (Q4) on a 24 GB Mac Mini, including LoRA
+    # fine-tuning — which the AirLLM layer-streaming approach does
+    # not support (inference-only).  Used by `rag_sign.llm_mlx` and
+    # `scripts/finetune_simhash_mlx_demo.py` /
+    # `scripts/fingerprint_mlx_smoke.py`.
+    "mlx>=0.20; platform_system == 'Darwin' and platform_machine == 'arm64'",
+    "mlx-lm>=0.20; platform_system == 'Darwin' and platform_machine == 'arm64'",
+]
 embeddings = [
     "sentence-transformers>=3.0",  # OSS embeddings (bge-large, etc.)
 ]
