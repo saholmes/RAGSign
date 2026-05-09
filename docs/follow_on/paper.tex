@@ -1105,16 +1105,20 @@ empirical evidence supports a more conservative claim:
   beyond an initial transient.  Empirically,
   $\rho(\text{GPT-2 small}) \approx 1.0$ (no detectable signal),
   $\rho(\text{SmolLM2-360M}) \approx 1.05\text{--}1.13$, and
-  $\rho(\text{Llama-3.2-3B, Q4 LoRA})$ climbs monotonically
-  with LoRA rank under independent probes —
-  $0.85 \to 1.07 \to 1.00 \to 1.29 \to \mathbf{1.44}$ for
-  ranks $4 \to 64$ (Table~\ref{tab:poisoning:rank-sweep}) —
-  with the $3/3$ sign at rank $64$ closing the
-  single\nobreakdash-trial significance gap.  The
-  rank\nobreakdash-dependence indicates the LoRA channel
-  capacity gates how much prior\nobreakdash-strength asymmetry
-  can manifest, with the full\nobreakdash-fine\nobreakdash-tune
-  limit as the asymptote.
+  At rank $64$ both architectures we tested converge to a
+  $3/3$\nobreakdash-sign differential under independent probes
+  ($\rho \approx 1.44$ on Llama-3.2-3B, $\rho \approx 1.26$ on
+  Qwen-2.5-3B; Table~\ref{tab:poisoning:cross-arch}).  At
+  intermediate ranks the trajectories are
+  architecture\nobreakdash-specific: Llama climbs monotonically
+  ($0.85 \to 1.07 \to 1.00 \to 1.29 \to 1.44$) while Qwen
+  reaches the differential earlier ($\rho = 1.25$, $3/3$ at
+  rank $8$) but is non\nobreakdash-monotonic across
+  ranks $16$\textendash$32$.  The
+  full\nobreakdash-fine\nobreakdash-tune limit appears to be
+  the natural asymptote on both architectures; the rank at
+  which the differential first becomes detectable depends on
+  architecture\nobreakdash-specific optimisation dynamics.
 \end{property}
 
 The refined conjecture is consistent with the geometric
@@ -1259,6 +1263,93 @@ note this is fully consistent with the layered\nobreakdash-policy
 framing of Section~\ref{sec:policy}: the cryptographic
 ceiling fires on raw drift; the operational fence interprets
 the residual differential.
+
+\paragraph{Cross-architecture replication: Qwen2.5-3B (Q4 LoRA).}
+We re\nobreakdash-ran the full $5$\nobreakdash-rank sweep on
+\texttt{Qwen2.5-3B-Instruct-4bit} to test whether the
+rank\nobreakdash-emergence pattern of
+Table~\ref{tab:poisoning:rank-sweep} is a Llama\nobreakdash-3-specific
+artefact or a generic LoRA\nobreakdash-capacity property.
+Same $25$\nobreakdash-iter budget, $3$ seeds, both probe sets,
+all other hyperparameters identical.
+
+\begin{table}[h]
+\centering
+\small
+\caption{Cross-architecture comparison.  Llama\nobreakdash-3.2\nobreakdash-3B
+vs Qwen\nobreakdash-2.5\nobreakdash-3B at Q4\nobreakdash-quantised LoRA,
+$25$ iters, $3$ seeds.  Per (rank, probes) cell: $\rho$ (sign).
+Bold cells flag $3/3$ sign\nobreakdash-test results.}
+\label{tab:poisoning:cross-arch}
+\begin{tabular}{r l c c}
+\toprule
+\textbf{Rank} & \textbf{Probes} & \textbf{Llama-3.2-3B} & \textbf{Qwen-2.5-3B} \\
+\midrule
+ 4 & original    & \textbf{2.07$\times$ (3/3)} & 1.06$\times$ (1/3) \\
+ 4 & independent & 0.85$\times$ (0/3)          & 1.03$\times$ (1/3) \\
+\addlinespace
+ 8 & original    & \textbf{2.06$\times$ (3/3)} & \textbf{1.35$\times$ (3/3)} \\
+ 8 & independent & 1.07$\times$ (2/3)          & \textbf{1.25$\times$ (3/3)} \\
+\addlinespace
+16 & original    & \textbf{2.25$\times$ (3/3)} & \textbf{1.53$\times$ (3/3)} \\
+16 & independent & 1.00$\times$ (1/3)          & 1.08$\times$ (2/3) \\
+\addlinespace
+32 & original    & \textbf{1.93$\times$ (3/3)} & \textbf{1.28$\times$ (3/3)} \\
+32 & independent & 1.29$\times$ (2/3)          & 0.86$\times$ (0/3) \\
+\addlinespace
+64 & original    & \textbf{1.53$\times$ (3/3)} & 1.29$\times$ (2/3) \\
+64 & independent & \textbf{1.44$\times$ (3/3)} & \textbf{1.26$\times$ (3/3)} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The high\nobreakdash-rank limit reproduces cleanly: at rank $64$
+both architectures show the differential at $3/3$ sign on the
+independent probes ($\rho = 1.44$ on Llama, $\rho = 1.26$ on
+Qwen).  This rules out the rank $64$ emergence as a
+Llama\nobreakdash-3\nobreakdash-specific artefact and supports
+the refined Property's full\nobreakdash-fine\nobreakdash-tune
+asymptote interpretation.
+
+The intermediate\nobreakdash-rank trajectories, however, are
+\emph{architecture\nobreakdash-dependent}.  Llama climbs
+monotonically toward the rank $64$ limit
+($0.85 \to 1.07 \to 1.00 \to 1.29 \to 1.44$); Qwen reaches
+$3/3$ sign already at rank $8$ ($\rho = 1.25$), then drops
+through ranks $16$ ($\rho = 1.08$, $2/3$) and $32$
+($\rho = 0.86$, $0/3$ — \emph{coherent} drifts more than
+contradictory) before recovering at rank $64$.  The "continuum"
+reading from the Llama\nobreakdash-only data is therefore not a
+universal LoRA property; it describes Llama\nobreakdash-3's
+specific response to LoRA capacity.  Qwen's
+non\nobreakdash-monotonic shape suggests the
+prior\nobreakdash-strength asymmetry interacts non\nobreakdash-trivially
+with rank\nobreakdash-by\nobreakdash-rank attention dynamics
+in a way our $25$\nobreakdash-iter / $3$\nobreakdash-seed
+sample cannot fully resolve.
+
+The original\nobreakdash-probe ratio also diverges across
+architectures.  On Llama the artefact is rank\nobreakdash-invariant
+at $\rho \approx 2$ until it compresses at rank $64$; on Qwen
+the artefact is consistently weaker (peak $\rho = 1.53$ at
+rank $16$) and tracks the rank curve more like a continuum than
+a saturated artefact.  We attribute this to tokenizer / vocab
+differences: Qwen-2.5's token boundaries on the
+contradiction\nobreakdash-overlapping probe positions
+("\emph{The capital of France is}", "\emph{Water boils at}")
+do not align as cleanly with Llama-3's, so the
+contradiction\nobreakdash-specific logits do not concentrate
+as sharply at the original probes' final tokens.
+
+The cross\nobreakdash-architecture story strengthens the §7.6
+$E_1$\textendash$E_2$ probe\nobreakdash-overlap diagnosis (the
+artefact magnitude depends on architecture\nobreakdash-specific
+tokenisation) while complicating the §7.5 capacity\nobreakdash-emergence
+reading (the rank at which the differential becomes detectable
+is architecture\nobreakdash-specific).  The deployment
+recommendation is unchanged: per\nobreakdash-deployment
+calibration on a representative LoRA fine\nobreakdash-tune is
+the only reliable path to a numerical threshold.
 
 \subsection{What the apparent positives revealed}
 \label{sec:poisoning:lessons}
