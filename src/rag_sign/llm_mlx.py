@@ -110,13 +110,20 @@ class MlxLLM:
         """Produce a single completion for ``prompt`` (LLMBackend Protocol)."""
         from mlx_lm import generate  # type: ignore[import-not-found]
 
+        # mlx-lm 0.20 dropped the `temp` kwarg in favour of a
+        # sampler-callable plumbing; for the use cases this backend
+        # serves (deterministic greedy probe completion + paper
+        # demos) the default greedy decoding is the right choice,
+        # so we just drop temperature here rather than re-implement
+        # the sampler.  The `temperature` parameter is kept in the
+        # signature for LLMBackend Protocol conformance.
+        _ = temperature
         return str(
             generate(
                 self._model,
                 self._tokenizer,
                 prompt=prompt,
                 max_tokens=max_tokens,
-                temp=temperature,
                 verbose=False,
             )
         ).strip()
