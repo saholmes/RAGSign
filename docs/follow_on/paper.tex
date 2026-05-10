@@ -1398,6 +1398,72 @@ gate's threshold against a low\nobreakdash-diversity poisoning
 fixture will under\nobreakdash-estimate the magnitude of the
 signal a real diverse poisoning attempt produces.
 
+\paragraph{Partial adversarial evaluation: probe-leaking attack
+(K=1).}
+The above experiments assume an honest fine\nobreakdash-tuner
+who does not target the gate.  A natural first
+adversarial probe is whether an attacker who knows the
+verifier's probe set and has white\nobreakdash-box access to
+the base model can suppress the differential by appending
+"probe\nobreakdash-anchor" sentences (formed as
+\verb|probe + base_model_completion|) to their contradictory
+training set, with the intent of pulling the
+probe\nobreakdash-conditional logits back toward the
+baseline.  We construct the adversarial corpus as the
+$100$\nobreakdash-unique diverse contradictions plus $10$
+probe anchors at $K = 1$ repetition each ($110$ total
+sentences, ${+}10\%$ training\nobreakdash-set
+overhead) and re\nobreakdash-run Qwen rank $32$ at $n = 10$
+seeds:
+
+\begin{center}
+\begin{tabular}{l c c c c}
+\toprule
+\textbf{Setup} & $\bm{\mu_{\mathrm{coh}}}$ & $\bm{\mu_{\mathrm{con}}}$ & $\bm{\rho}$ & \textbf{sign} \\
+\midrule
+Diverse, no attack             & $17.9 \pm 2.2$ & $21.7 \pm 3.4$ & 1.21 & 9/10 \\
+Diverse $+$ K=1 probe anchors  & $17.9 \pm 2.2$ & $\mathbf{34.5 \pm 9.6}$ & $\mathbf{1.93}$ & $\mathbf{10/10}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The attack \emph{amplifies} the differential rather than
+suppressing it.  Contradictory drift rises ${+}59\%$
+($21.7 \to 34.5$ bits) and the sign\nobreakdash-test goes
+from $9/10$ to $10/10$ (binomial $p \approx 0.001$ in
+Property~$1$'s direction).  The mechanism is straightforward
+once stated: the verifier measures
+probe\nobreakdash-conditional last\nobreakdash-token logits;
+any training data that begins with the literal probe text
+is the maximum\nobreakdash-leverage perturbation of exactly
+those logits.  Including
+\verb|probe + base_completion| as a training sentence trains
+the LoRA on the probe prefix at every iteration in which
+that sentence is sampled, drifting the
+probe\nobreakdash-conditional logits more — not less — than
+training only on contradictions about
+geographically\nobreakdash-distinct topics would.  The
+defender's choice of measuring at probe\nobreakdash-conditional
+logits automatically converts probe\nobreakdash-anchoring
+attacks into self\nobreakdash-incrimination.
+
+This is a single attack design at one rank on one
+architecture and should not be over\nobreakdash-read as a
+general adversarial robustness claim.  More sophisticated
+attacks remain open: gradient\nobreakdash-aligned
+optimisation that minimises probe\nobreakdash-conditional
+divergence while preserving contradictory content, or
+black\nobreakdash-box query attacks that train multiple
+LoRA candidates and select the one whose probe drift is
+smallest.  But the result \emph{does} establish that the
+naive probe\nobreakdash-leaking attack — the obvious first
+attempt for an attacker with white\nobreakdash-box probe
+knowledge — is counterproductive.  The attacker's cost
+escalates from "include probe data and hope" to "needs
+gradient access $+$ optimisation tooling targeting the
+specific fingerprint construction," which is a meaningful
+deployment property even if not an end\nobreakdash-game one.
+
 The original\nobreakdash-probe ratio also diverges across
 architectures.  On Llama the artefact is rank\nobreakdash-invariant
 at $\rho \approx 2$ until it compresses at rank $64$; on Qwen
