@@ -1111,14 +1111,20 @@ empirical evidence supports a more conservative claim:
   Qwen-2.5-3B; Table~\ref{tab:poisoning:cross-arch}).  At
   intermediate ranks the trajectories are
   architecture\nobreakdash-specific: Llama climbs monotonically
-  ($0.85 \to 1.07 \to 1.00 \to 1.29 \to 1.44$); Qwen has a
-  rank $32$ inversion ($\rho = 0.89$ at $n=10$, $2/10$ seeds
-  favouring contradictory — borderline opposite direction)
-  before recovering at rank $64$.  The
-  full\nobreakdash-fine\nobreakdash-tune limit appears to be
-  the natural asymptote on both architectures, but the
-  intermediate\nobreakdash-rank shape is not a universal
-  function of LoRA capacity.
+  ($0.85 \to 1.07 \to 1.00 \to 1.29 \to 1.44$); Qwen exhibits
+  a rank $32$ inversion ($\rho = 0.89$ at $n=10$) under
+  matched\nobreakdash-corpus conditions, which a
+  diversity\nobreakdash-controlled re\nobreakdash-test
+  (Section~\ref{sec:poisoning:refined} paragraph
+  ``Diversity\nobreakdash-controlled re\nobreakdash-test'')
+  flips to $\rho = 1.21$ at $9/10$ sign (binomial
+  $p \approx 0.011$) by expanding the contradictory corpus
+  from $10$ unique $\times\,10$ reps to $100$ unique $\times\,1$
+  rep.  The full\nobreakdash-fine\nobreakdash-tune limit is the
+  asymptote on both architectures; the
+  intermediate\nobreakdash-rank shape additionally depends on
+  contradictory\nobreakdash-corpus repetition saturation
+  (a per\nobreakdash-deployment calibration factor).
 \end{property}
 
 The refined conjecture is consistent with the geometric
@@ -1335,11 +1341,62 @@ is real, and Qwen has a real but non\nobreakdash-monotonic
 trajectory at intermediate ranks that includes a rank $32$
 inversion — at moderate LoRA capacity on Qwen, coherent
 training moves the model further than contradictory training
-does on disjoint probes.  We do not have a mechanism for the
-inversion at this point; lexical diversity of the coherent
-corpus (vs the contradictory corpus's $20$ unique
-sentences) is the leading candidate, but a sweep that controls
-diversity across the two corpora is needed to test it.
+does on disjoint probes.  Both corpora as
+written have the same $10$ unique sentences $\times$ $10$
+repetitions structure ($100$ total each), so the inversion is
+not a static\nobreakdash-diversity asymmetry.  We tested whether
+a \emph{dynamic}\nobreakdash-diversity asymmetry — produced by
+expanding the contradictory corpus to $100$ unique sentences
+$\times$ $1$ repetition (same total, $10\!\times$ the unique
+count) while keeping the coherent corpus unchanged — explains
+the inversion.
+
+\paragraph{Diversity-controlled re-test (Qwen, rank $32$,
+$n = 10$).}
+With the diverse $100\!\times\!1$ contradictory corpus the
+ratio flips decisively into Property~$1$'s direction:
+
+\begin{center}
+\begin{tabular}{l c c c c}
+\toprule
+\textbf{Setup} & $\bm{\mu_{\mathrm{coh}}}$ & $\bm{\mu_{\mathrm{con}}}$ & $\bm{\rho}$ & \textbf{sign} \\
+\midrule
+Original $10\!\times\!10$ / $10\!\times\!10$ & $17.9 \pm 2.2$ & $16.0 \pm 2.3$ & 0.89 & 2/10 \\
+Diverse $10\!\times\!10$ / $100\!\times\!1$  & $17.9 \pm 2.2$ & $\mathbf{21.7 \pm 3.4}$ & $\mathbf{1.21}$ & $\mathbf{9/10}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The coherent column is unchanged (the coherent corpus is
+unchanged) — the absolute mean $17.9 \pm 2.2$ matches between
+the two runs to two decimal places.  Contradictory drift rises
+by ${+}36\%$ ($16.0 \to 21.7$) purely from increasing the
+unique\nobreakdash-sentence count.  $9$ of $10$ seeds favour
+contradictory (binomial $p \approx 0.011$, statistically
+significant in Property~$1$'s expected direction).
+
+The mechanism is consistent with §7.6's $E_4$
+corpus\nobreakdash-diversity confound, recast as a positive
+control: repeated contradictions saturate quickly (the model
+has memorised "France $\to$ Berlin" by step $\sim\!10$ of $25$
+and additional iters add little weight movement); diverse
+contradictions keep producing high\nobreakdash-contrast learning
+signal across all $25$ iters and so produce more weight movement
+that propagates to topically\nobreakdash-disjoint probes.
+
+This refines Property~$1$ further: the differential
+$\rho > 1$ holds when the contradictory corpus has
+\emph{lexical diversity comparable to or greater than} the
+coherent corpus.  When the corpora are matched on diversity at
+\emph{repetition\nobreakdash-saturation} timescales, the
+differential can collapse or invert because the contradictory
+side memorises faster.  This is the first empirical anchor we
+have for the conjecture in the
+production\nobreakdash-realistic LoRA regime — and it carries
+a direct deployment caveat: a regulator who calibrates the
+gate's threshold against a low\nobreakdash-diversity poisoning
+fixture will under\nobreakdash-estimate the magnitude of the
+signal a real diverse poisoning attempt produces.
 
 The original\nobreakdash-probe ratio also diverges across
 architectures.  On Llama the artefact is rank\nobreakdash-invariant
