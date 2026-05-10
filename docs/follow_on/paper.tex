@@ -1111,14 +1111,14 @@ empirical evidence supports a more conservative claim:
   Qwen-2.5-3B; Table~\ref{tab:poisoning:cross-arch}).  At
   intermediate ranks the trajectories are
   architecture\nobreakdash-specific: Llama climbs monotonically
-  ($0.85 \to 1.07 \to 1.00 \to 1.29 \to 1.44$) while Qwen
-  reaches the differential earlier ($\rho = 1.25$, $3/3$ at
-  rank $8$) but is non\nobreakdash-monotonic across
-  ranks $16$\textendash$32$.  The
+  ($0.85 \to 1.07 \to 1.00 \to 1.29 \to 1.44$); Qwen has a
+  rank $32$ inversion ($\rho = 0.89$ at $n=10$, $2/10$ seeds
+  favouring contradictory — borderline opposite direction)
+  before recovering at rank $64$.  The
   full\nobreakdash-fine\nobreakdash-tune limit appears to be
-  the natural asymptote on both architectures; the rank at
-  which the differential first becomes detectable depends on
-  architecture\nobreakdash-specific optimisation dynamics.
+  the natural asymptote on both architectures, but the
+  intermediate\nobreakdash-rank shape is not a universal
+  function of LoRA capacity.
 \end{property}
 
 The refined conjecture is consistent with the geometric
@@ -1311,22 +1311,35 @@ Llama\nobreakdash-3\nobreakdash-specific artefact and supports
 the refined Property's full\nobreakdash-fine\nobreakdash-tune
 asymptote interpretation.
 
-The intermediate\nobreakdash-rank trajectories, however, are
-\emph{architecture\nobreakdash-dependent}.  Llama climbs
+The intermediate\nobreakdash-rank trajectories at $n=3$ seeds
+appear architecture\nobreakdash-dependent.  Llama climbs
 monotonically toward the rank $64$ limit
-($0.85 \to 1.07 \to 1.00 \to 1.29 \to 1.44$); Qwen reaches
-$3/3$ sign already at rank $8$ ($\rho = 1.25$), then drops
-through ranks $16$ ($\rho = 1.08$, $2/3$) and $32$
-($\rho = 0.86$, $0/3$ — \emph{coherent} drifts more than
-contradictory) before recovering at rank $64$.  The "continuum"
-reading from the Llama\nobreakdash-only data is therefore not a
-universal LoRA property; it describes Llama\nobreakdash-3's
-specific response to LoRA capacity.  Qwen's
-non\nobreakdash-monotonic shape suggests the
-prior\nobreakdash-strength asymmetry interacts non\nobreakdash-trivially
-with rank\nobreakdash-by\nobreakdash-rank attention dynamics
-in a way our $25$\nobreakdash-iter / $3$\nobreakdash-seed
-sample cannot fully resolve.
+($0.85 \to 1.07 \to 1.00 \to 1.29 \to 1.44$); Qwen, at $n=3$,
+appears to reach $3/3$ sign already at rank $8$
+($\rho = 1.25$) before dipping at rank $32$ ($\rho = 0.86$,
+$0/3$ — \emph{coherent} drifts more than contradictory).  We
+re\nobreakdash-ran the two extreme Qwen cells (rank $8$ and
+rank $32$, independent probes) at $n=10$ seeds to test whether
+the apparent non\nobreakdash-monotonicity survives a tighter
+noise floor.  At $n=10$ the rank $8$ "spike" collapses to
+$\rho = 1.04$ with $5/10$ sign — chance level; the
+$n=3$ value of $\rho = 1.25$ at $3/3$ was therefore
+seed\nobreakdash-sample noise.  The rank $32$ "trough"
+\emph{persists}: $\rho = 0.89$ at $n=10$ with only $2/10$ seeds
+favouring contradictory (binomial $p \approx 0.055$, borderline
+in the \emph{opposite} direction from Property~$1$'s
+prediction).  The honest cross\nobreakdash-architecture reading
+is therefore: the rank $64$ high\nobreakdash-capacity emergence
+is robust on both architectures, the Llama monotonic continuum
+is real, and Qwen has a real but non\nobreakdash-monotonic
+trajectory at intermediate ranks that includes a rank $32$
+inversion — at moderate LoRA capacity on Qwen, coherent
+training moves the model further than contradictory training
+does on disjoint probes.  We do not have a mechanism for the
+inversion at this point; lexical diversity of the coherent
+corpus (vs the contradictory corpus's $20$ unique
+sentences) is the leading candidate, but a sweep that controls
+diversity across the two corpora is needed to test it.
 
 The original\nobreakdash-probe ratio also diverges across
 architectures.  On Llama the artefact is rank\nobreakdash-invariant
