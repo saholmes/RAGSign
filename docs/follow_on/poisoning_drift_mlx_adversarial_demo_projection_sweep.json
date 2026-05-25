@@ -1,0 +1,332 @@
+{
+  "backend": "mlx-lora",
+  "experiment": "partial adversarial: contradictory=100 unique \u00d7 1 + 10 probe-anchors \u00d7 1 reps; coherent unchanged",
+  "model": "mlx-community/Qwen2.5-3B-Instruct-4bit",
+  "n_parameters": 482381824,
+  "fingerprint_bits": 512,
+  "seeds": [
+    2026,
+    2027,
+    2028,
+    2029,
+    2030,
+    2031,
+    2032,
+    2033,
+    2034,
+    2035
+  ],
+  "projection_seeds": [
+    "thesis-finetune-demo",
+    "thesis-finetune-demo-2",
+    "thesis-finetune-demo-3",
+    "thesis-finetune-demo-4",
+    "thesis-finetune-demo-5"
+  ],
+  "n_projections": 5,
+  "lr": 1e-05,
+  "rank": 32,
+  "steps": 25,
+  "batch_size": 4,
+  "anchor_reps_K": 1,
+  "anchor_tokens": 16,
+  "platform": "Darwin/arm64",
+  "probe_anchors": [
+    "To make sourdough bread, you need to activate a starter, which takes 3 days. After that, you can use",
+    "The orchestra played the symphony in the concert hall. The concert hall was very large. The symphony was very",
+    "The midfielder passed the ball to the goalkeeper, who then passed it to the defender, who then passed it to the",
+    "Patients with high blood pressure should avoid eating too much of the following foods: A. Soybeans B. Cucumber",
+    "Cumulonimbus clouds typically form when warm, moist air rises and cools, leading to condensation of water vapor",
+    "The artist painted the landscape using a technique that involved the use of a specific color palette. The palette consisted of",
+    "During photosynthesis, plants convert carbon dioxide and water into glucose and oxygen. If a plant produces 10",
+    "The marathon runner trained by running 20 miles each day for the first 18 days of training",
+    "Beneath the ocean waves, dolphins use a variety of sounds to communicate with one another. They use whistles, clicks",
+    "The photographer adjusted the aperture to f/2.8, the shutter speed to 1/30 second"
+  ],
+  "trial": {
+    "per_seed": [
+      {
+        "seed": 2026,
+        "coherent_hamming": 21,
+        "coherent_hamming_pct": 4.1,
+        "coherent_finetune_s": 22.6,
+        "coherent_hamming_per_projection": {
+          "thesis-finetune-demo": 21,
+          "thesis-finetune-demo-2": 19,
+          "thesis-finetune-demo-3": 22,
+          "thesis-finetune-demo-4": 22,
+          "thesis-finetune-demo-5": 19
+        },
+        "contradictory_hamming": 52,
+        "contradictory_hamming_pct": 10.16,
+        "contradictory_finetune_s": 23.4,
+        "contradictory_hamming_per_projection": {
+          "thesis-finetune-demo": 52,
+          "thesis-finetune-demo-2": 55,
+          "thesis-finetune-demo-3": 44,
+          "thesis-finetune-demo-4": 51,
+          "thesis-finetune-demo-5": 52
+        }
+      },
+      {
+        "seed": 2027,
+        "coherent_hamming": 18,
+        "coherent_hamming_pct": 3.52,
+        "coherent_finetune_s": 23.6,
+        "coherent_hamming_per_projection": {
+          "thesis-finetune-demo": 18,
+          "thesis-finetune-demo-2": 26,
+          "thesis-finetune-demo-3": 28,
+          "thesis-finetune-demo-4": 23,
+          "thesis-finetune-demo-5": 21
+        },
+        "contradictory_hamming": 27,
+        "contradictory_hamming_pct": 5.27,
+        "contradictory_finetune_s": 23.3,
+        "contradictory_hamming_per_projection": {
+          "thesis-finetune-demo": 27,
+          "thesis-finetune-demo-2": 35,
+          "thesis-finetune-demo-3": 30,
+          "thesis-finetune-demo-4": 25,
+          "thesis-finetune-demo-5": 22
+        }
+      },
+      {
+        "seed": 2028,
+        "coherent_hamming": 17,
+        "coherent_hamming_pct": 3.32,
+        "coherent_finetune_s": 23.8,
+        "coherent_hamming_per_projection": {
+          "thesis-finetune-demo": 17,
+          "thesis-finetune-demo-2": 13,
+          "thesis-finetune-demo-3": 21,
+          "thesis-finetune-demo-4": 20,
+          "thesis-finetune-demo-5": 19
+        },
+        "contradictory_hamming": 25,
+        "contradictory_hamming_pct": 4.88,
+        "contradictory_finetune_s": 23.6,
+        "contradictory_hamming_per_projection": {
+          "thesis-finetune-demo": 25,
+          "thesis-finetune-demo-2": 31,
+          "thesis-finetune-demo-3": 27,
+          "thesis-finetune-demo-4": 23,
+          "thesis-finetune-demo-5": 25
+        }
+      },
+      {
+        "seed": 2029,
+        "coherent_hamming": 17,
+        "coherent_hamming_pct": 3.32,
+        "coherent_finetune_s": 23.2,
+        "coherent_hamming_per_projection": {
+          "thesis-finetune-demo": 17,
+          "thesis-finetune-demo-2": 22,
+          "thesis-finetune-demo-3": 26,
+          "thesis-finetune-demo-4": 23,
+          "thesis-finetune-demo-5": 22
+        },
+        "contradictory_hamming": 40,
+        "contradictory_hamming_pct": 7.81,
+        "contradictory_finetune_s": 23.6,
+        "contradictory_hamming_per_projection": {
+          "thesis-finetune-demo": 40,
+          "thesis-finetune-demo-2": 40,
+          "thesis-finetune-demo-3": 37,
+          "thesis-finetune-demo-4": 42,
+          "thesis-finetune-demo-5": 39
+        }
+      },
+      {
+        "seed": 2030,
+        "coherent_hamming": 21,
+        "coherent_hamming_pct": 4.1,
+        "coherent_finetune_s": 23.5,
+        "coherent_hamming_per_projection": {
+          "thesis-finetune-demo": 21,
+          "thesis-finetune-demo-2": 23,
+          "thesis-finetune-demo-3": 26,
+          "thesis-finetune-demo-4": 24,
+          "thesis-finetune-demo-5": 28
+        },
+        "contradictory_hamming": 28,
+        "contradictory_hamming_pct": 5.47,
+        "contradictory_finetune_s": 22.7,
+        "contradictory_hamming_per_projection": {
+          "thesis-finetune-demo": 28,
+          "thesis-finetune-demo-2": 22,
+          "thesis-finetune-demo-3": 32,
+          "thesis-finetune-demo-4": 27,
+          "thesis-finetune-demo-5": 24
+        }
+      },
+      {
+        "seed": 2031,
+        "coherent_hamming": 20,
+        "coherent_hamming_pct": 3.91,
+        "coherent_finetune_s": 24.9,
+        "coherent_hamming_per_projection": {
+          "thesis-finetune-demo": 20,
+          "thesis-finetune-demo-2": 24,
+          "thesis-finetune-demo-3": 26,
+          "thesis-finetune-demo-4": 17,
+          "thesis-finetune-demo-5": 17
+        },
+        "contradictory_hamming": 52,
+        "contradictory_hamming_pct": 10.16,
+        "contradictory_finetune_s": 25.9,
+        "contradictory_hamming_per_projection": {
+          "thesis-finetune-demo": 52,
+          "thesis-finetune-demo-2": 51,
+          "thesis-finetune-demo-3": 39,
+          "thesis-finetune-demo-4": 54,
+          "thesis-finetune-demo-5": 46
+        }
+      },
+      {
+        "seed": 2032,
+        "coherent_hamming": 16,
+        "coherent_hamming_pct": 3.12,
+        "coherent_finetune_s": 25.3,
+        "coherent_hamming_per_projection": {
+          "thesis-finetune-demo": 16,
+          "thesis-finetune-demo-2": 18,
+          "thesis-finetune-demo-3": 25,
+          "thesis-finetune-demo-4": 20,
+          "thesis-finetune-demo-5": 19
+        },
+        "contradictory_hamming": 31,
+        "contradictory_hamming_pct": 6.05,
+        "contradictory_finetune_s": 25.5,
+        "contradictory_hamming_per_projection": {
+          "thesis-finetune-demo": 31,
+          "thesis-finetune-demo-2": 41,
+          "thesis-finetune-demo-3": 29,
+          "thesis-finetune-demo-4": 32,
+          "thesis-finetune-demo-5": 39
+        }
+      },
+      {
+        "seed": 2033,
+        "coherent_hamming": 19,
+        "coherent_hamming_pct": 3.71,
+        "coherent_finetune_s": 26.1,
+        "coherent_hamming_per_projection": {
+          "thesis-finetune-demo": 19,
+          "thesis-finetune-demo-2": 19,
+          "thesis-finetune-demo-3": 20,
+          "thesis-finetune-demo-4": 22,
+          "thesis-finetune-demo-5": 16
+        },
+        "contradictory_hamming": 30,
+        "contradictory_hamming_pct": 5.86,
+        "contradictory_finetune_s": 26.3,
+        "contradictory_hamming_per_projection": {
+          "thesis-finetune-demo": 30,
+          "thesis-finetune-demo-2": 43,
+          "thesis-finetune-demo-3": 29,
+          "thesis-finetune-demo-4": 30,
+          "thesis-finetune-demo-5": 33
+        }
+      },
+      {
+        "seed": 2034,
+        "coherent_hamming": 14,
+        "coherent_hamming_pct": 2.73,
+        "coherent_finetune_s": 26.3,
+        "coherent_hamming_per_projection": {
+          "thesis-finetune-demo": 14,
+          "thesis-finetune-demo-2": 21,
+          "thesis-finetune-demo-3": 21,
+          "thesis-finetune-demo-4": 23,
+          "thesis-finetune-demo-5": 18
+        },
+        "contradictory_hamming": 27,
+        "contradictory_hamming_pct": 5.27,
+        "contradictory_finetune_s": 24.9,
+        "contradictory_hamming_per_projection": {
+          "thesis-finetune-demo": 27,
+          "thesis-finetune-demo-2": 35,
+          "thesis-finetune-demo-3": 25,
+          "thesis-finetune-demo-4": 24,
+          "thesis-finetune-demo-5": 31
+        }
+      },
+      {
+        "seed": 2035,
+        "coherent_hamming": 16,
+        "coherent_hamming_pct": 3.12,
+        "coherent_finetune_s": 28.2,
+        "coherent_hamming_per_projection": {
+          "thesis-finetune-demo": 16,
+          "thesis-finetune-demo-2": 17,
+          "thesis-finetune-demo-3": 15,
+          "thesis-finetune-demo-4": 20,
+          "thesis-finetune-demo-5": 16
+        },
+        "contradictory_hamming": 33,
+        "contradictory_hamming_pct": 6.45,
+        "contradictory_finetune_s": 26.3,
+        "contradictory_hamming_per_projection": {
+          "thesis-finetune-demo": 33,
+          "thesis-finetune-demo-2": 39,
+          "thesis-finetune-demo-3": 31,
+          "thesis-finetune-demo-4": 31,
+          "thesis-finetune-demo-5": 34
+        }
+      }
+    ],
+    "coherent_mean": 17.9,
+    "coherent_std": 2.21,
+    "contradictory_mean": 34.5,
+    "contradictory_std": 9.6,
+    "drift_ratio_mean": 1.927,
+    "seeds_with_contra_gt_coh": 10,
+    "seeds_total": 10,
+    "per_projection": {
+      "thesis-finetune-demo": {
+        "coherent_mean": 17.9,
+        "coherent_std": 2.21,
+        "contradictory_mean": 34.5,
+        "contradictory_std": 9.6,
+        "drift_ratio": 1.927,
+        "seeds_with_contra_gt_coh": 10
+      },
+      "thesis-finetune-demo-2": {
+        "coherent_mean": 20.2,
+        "coherent_std": 3.6,
+        "contradictory_mean": 39.2,
+        "contradictory_std": 8.98,
+        "drift_ratio": 1.941,
+        "seeds_with_contra_gt_coh": 9
+      },
+      "thesis-finetune-demo-3": {
+        "coherent_mean": 23.0,
+        "coherent_std": 3.71,
+        "contradictory_mean": 32.3,
+        "contradictory_std": 5.6,
+        "drift_ratio": 1.404,
+        "seeds_with_contra_gt_coh": 10
+      },
+      "thesis-finetune-demo-4": {
+        "coherent_mean": 21.4,
+        "coherent_std": 2.01,
+        "contradictory_mean": 33.9,
+        "contradictory_std": 10.64,
+        "drift_ratio": 1.584,
+        "seeds_with_contra_gt_coh": 10
+      },
+      "thesis-finetune-demo-5": {
+        "coherent_mean": 19.5,
+        "coherent_std": 3.38,
+        "contradictory_mean": 34.5,
+        "contradictory_std": 9.22,
+        "drift_ratio": 1.769,
+        "seeds_with_contra_gt_coh": 9
+      }
+    },
+    "drift_ratio_projection_mean": 1.725,
+    "drift_ratio_projection_std": 0.206,
+    "drift_ratio_projection_cv": 0.119
+  }
+}

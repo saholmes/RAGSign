@@ -1,0 +1,322 @@
+{
+  "backend": "mlx-lora",
+  "experiment": "diversity-controlled (contradictory: 100 unique \u00d7 1 rep; coherent: 10 unique \u00d7 10 reps)",
+  "model": "mlx-community/Qwen2.5-3B-Instruct-4bit",
+  "n_parameters": 482381824,
+  "fingerprint_bits": 512,
+  "seeds": [
+    2026,
+    2027,
+    2028,
+    2029,
+    2030,
+    2031,
+    2032,
+    2033,
+    2034,
+    2035
+  ],
+  "projection_seeds": [
+    "thesis-finetune-demo",
+    "thesis-finetune-demo-2",
+    "thesis-finetune-demo-3",
+    "thesis-finetune-demo-4",
+    "thesis-finetune-demo-5"
+  ],
+  "n_projections": 5,
+  "lr": 1e-05,
+  "rank": 32,
+  "steps": 25,
+  "batch_size": 4,
+  "platform": "Darwin/arm64",
+  "coherent_unique": 10,
+  "coherent_total": 100,
+  "contradictory_unique": 100,
+  "contradictory_total": 100,
+  "trial": {
+    "per_seed": [
+      {
+        "seed": 2026,
+        "coherent_hamming": 21,
+        "coherent_hamming_pct": 4.1,
+        "coherent_finetune_s": 24.0,
+        "coherent_hamming_per_projection": {
+          "thesis-finetune-demo": 21,
+          "thesis-finetune-demo-2": 19,
+          "thesis-finetune-demo-3": 22,
+          "thesis-finetune-demo-4": 22,
+          "thesis-finetune-demo-5": 19
+        },
+        "contradictory_hamming": 22,
+        "contradictory_hamming_pct": 4.3,
+        "contradictory_finetune_s": 24.5,
+        "contradictory_hamming_per_projection": {
+          "thesis-finetune-demo": 22,
+          "thesis-finetune-demo-2": 28,
+          "thesis-finetune-demo-3": 23,
+          "thesis-finetune-demo-4": 16,
+          "thesis-finetune-demo-5": 16
+        }
+      },
+      {
+        "seed": 2027,
+        "coherent_hamming": 18,
+        "coherent_hamming_pct": 3.52,
+        "coherent_finetune_s": 24.3,
+        "coherent_hamming_per_projection": {
+          "thesis-finetune-demo": 18,
+          "thesis-finetune-demo-2": 26,
+          "thesis-finetune-demo-3": 28,
+          "thesis-finetune-demo-4": 23,
+          "thesis-finetune-demo-5": 21
+        },
+        "contradictory_hamming": 29,
+        "contradictory_hamming_pct": 5.66,
+        "contradictory_finetune_s": 24.6,
+        "contradictory_hamming_per_projection": {
+          "thesis-finetune-demo": 29,
+          "thesis-finetune-demo-2": 32,
+          "thesis-finetune-demo-3": 33,
+          "thesis-finetune-demo-4": 19,
+          "thesis-finetune-demo-5": 31
+        }
+      },
+      {
+        "seed": 2028,
+        "coherent_hamming": 17,
+        "coherent_hamming_pct": 3.32,
+        "coherent_finetune_s": 24.1,
+        "coherent_hamming_per_projection": {
+          "thesis-finetune-demo": 17,
+          "thesis-finetune-demo-2": 13,
+          "thesis-finetune-demo-3": 21,
+          "thesis-finetune-demo-4": 20,
+          "thesis-finetune-demo-5": 19
+        },
+        "contradictory_hamming": 19,
+        "contradictory_hamming_pct": 3.71,
+        "contradictory_finetune_s": 24.6,
+        "contradictory_hamming_per_projection": {
+          "thesis-finetune-demo": 19,
+          "thesis-finetune-demo-2": 22,
+          "thesis-finetune-demo-3": 30,
+          "thesis-finetune-demo-4": 21,
+          "thesis-finetune-demo-5": 15
+        }
+      },
+      {
+        "seed": 2029,
+        "coherent_hamming": 17,
+        "coherent_hamming_pct": 3.32,
+        "coherent_finetune_s": 24.3,
+        "coherent_hamming_per_projection": {
+          "thesis-finetune-demo": 17,
+          "thesis-finetune-demo-2": 22,
+          "thesis-finetune-demo-3": 26,
+          "thesis-finetune-demo-4": 23,
+          "thesis-finetune-demo-5": 22
+        },
+        "contradictory_hamming": 22,
+        "contradictory_hamming_pct": 4.3,
+        "contradictory_finetune_s": 24.4,
+        "contradictory_hamming_per_projection": {
+          "thesis-finetune-demo": 22,
+          "thesis-finetune-demo-2": 18,
+          "thesis-finetune-demo-3": 28,
+          "thesis-finetune-demo-4": 21,
+          "thesis-finetune-demo-5": 16
+        }
+      },
+      {
+        "seed": 2030,
+        "coherent_hamming": 21,
+        "coherent_hamming_pct": 4.1,
+        "coherent_finetune_s": 24.1,
+        "coherent_hamming_per_projection": {
+          "thesis-finetune-demo": 21,
+          "thesis-finetune-demo-2": 23,
+          "thesis-finetune-demo-3": 26,
+          "thesis-finetune-demo-4": 24,
+          "thesis-finetune-demo-5": 28
+        },
+        "contradictory_hamming": 23,
+        "contradictory_hamming_pct": 4.49,
+        "contradictory_finetune_s": 24.3,
+        "contradictory_hamming_per_projection": {
+          "thesis-finetune-demo": 23,
+          "thesis-finetune-demo-2": 21,
+          "thesis-finetune-demo-3": 30,
+          "thesis-finetune-demo-4": 24,
+          "thesis-finetune-demo-5": 20
+        }
+      },
+      {
+        "seed": 2031,
+        "coherent_hamming": 20,
+        "coherent_hamming_pct": 3.91,
+        "coherent_finetune_s": 24.7,
+        "coherent_hamming_per_projection": {
+          "thesis-finetune-demo": 20,
+          "thesis-finetune-demo-2": 24,
+          "thesis-finetune-demo-3": 26,
+          "thesis-finetune-demo-4": 17,
+          "thesis-finetune-demo-5": 17
+        },
+        "contradictory_hamming": 23,
+        "contradictory_hamming_pct": 4.49,
+        "contradictory_finetune_s": 25.0,
+        "contradictory_hamming_per_projection": {
+          "thesis-finetune-demo": 23,
+          "thesis-finetune-demo-2": 26,
+          "thesis-finetune-demo-3": 25,
+          "thesis-finetune-demo-4": 20,
+          "thesis-finetune-demo-5": 17
+        }
+      },
+      {
+        "seed": 2032,
+        "coherent_hamming": 16,
+        "coherent_hamming_pct": 3.12,
+        "coherent_finetune_s": 25.1,
+        "coherent_hamming_per_projection": {
+          "thesis-finetune-demo": 16,
+          "thesis-finetune-demo-2": 18,
+          "thesis-finetune-demo-3": 25,
+          "thesis-finetune-demo-4": 20,
+          "thesis-finetune-demo-5": 19
+        },
+        "contradictory_hamming": 19,
+        "contradictory_hamming_pct": 3.71,
+        "contradictory_finetune_s": 24.8,
+        "contradictory_hamming_per_projection": {
+          "thesis-finetune-demo": 19,
+          "thesis-finetune-demo-2": 23,
+          "thesis-finetune-demo-3": 29,
+          "thesis-finetune-demo-4": 21,
+          "thesis-finetune-demo-5": 14
+        }
+      },
+      {
+        "seed": 2033,
+        "coherent_hamming": 19,
+        "coherent_hamming_pct": 3.71,
+        "coherent_finetune_s": 25.4,
+        "coherent_hamming_per_projection": {
+          "thesis-finetune-demo": 19,
+          "thesis-finetune-demo-2": 19,
+          "thesis-finetune-demo-3": 20,
+          "thesis-finetune-demo-4": 22,
+          "thesis-finetune-demo-5": 16
+        },
+        "contradictory_hamming": 23,
+        "contradictory_hamming_pct": 4.49,
+        "contradictory_finetune_s": 25.4,
+        "contradictory_hamming_per_projection": {
+          "thesis-finetune-demo": 23,
+          "thesis-finetune-demo-2": 25,
+          "thesis-finetune-demo-3": 27,
+          "thesis-finetune-demo-4": 21,
+          "thesis-finetune-demo-5": 22
+        }
+      },
+      {
+        "seed": 2034,
+        "coherent_hamming": 14,
+        "coherent_hamming_pct": 2.73,
+        "coherent_finetune_s": 25.9,
+        "coherent_hamming_per_projection": {
+          "thesis-finetune-demo": 14,
+          "thesis-finetune-demo-2": 21,
+          "thesis-finetune-demo-3": 21,
+          "thesis-finetune-demo-4": 23,
+          "thesis-finetune-demo-5": 18
+        },
+        "contradictory_hamming": 22,
+        "contradictory_hamming_pct": 4.3,
+        "contradictory_finetune_s": 26.4,
+        "contradictory_hamming_per_projection": {
+          "thesis-finetune-demo": 22,
+          "thesis-finetune-demo-2": 27,
+          "thesis-finetune-demo-3": 26,
+          "thesis-finetune-demo-4": 18,
+          "thesis-finetune-demo-5": 15
+        }
+      },
+      {
+        "seed": 2035,
+        "coherent_hamming": 16,
+        "coherent_hamming_pct": 3.12,
+        "coherent_finetune_s": 28.6,
+        "coherent_hamming_per_projection": {
+          "thesis-finetune-demo": 16,
+          "thesis-finetune-demo-2": 17,
+          "thesis-finetune-demo-3": 15,
+          "thesis-finetune-demo-4": 20,
+          "thesis-finetune-demo-5": 16
+        },
+        "contradictory_hamming": 15,
+        "contradictory_hamming_pct": 2.93,
+        "contradictory_finetune_s": 24.5,
+        "contradictory_hamming_per_projection": {
+          "thesis-finetune-demo": 15,
+          "thesis-finetune-demo-2": 22,
+          "thesis-finetune-demo-3": 27,
+          "thesis-finetune-demo-4": 20,
+          "thesis-finetune-demo-5": 16
+        }
+      }
+    ],
+    "coherent_mean": 17.9,
+    "coherent_std": 2.21,
+    "contradictory_mean": 21.7,
+    "contradictory_std": 3.44,
+    "drift_ratio_mean": 1.212,
+    "seeds_with_contra_gt_coh": 9,
+    "seeds_total": 10,
+    "per_projection": {
+      "thesis-finetune-demo": {
+        "coherent_mean": 17.9,
+        "coherent_std": 2.21,
+        "contradictory_mean": 21.7,
+        "contradictory_std": 3.44,
+        "drift_ratio": 1.212,
+        "seeds_with_contra_gt_coh": 9
+      },
+      "thesis-finetune-demo-2": {
+        "coherent_mean": 20.2,
+        "coherent_std": 3.6,
+        "contradictory_mean": 24.4,
+        "contradictory_std": 3.83,
+        "drift_ratio": 1.208,
+        "seeds_with_contra_gt_coh": 8
+      },
+      "thesis-finetune-demo-3": {
+        "coherent_mean": 23.0,
+        "coherent_std": 3.71,
+        "contradictory_mean": 27.8,
+        "contradictory_std": 2.71,
+        "drift_ratio": 1.209,
+        "seeds_with_contra_gt_coh": 9
+      },
+      "thesis-finetune-demo-4": {
+        "coherent_mean": 21.4,
+        "coherent_std": 2.01,
+        "contradictory_mean": 20.1,
+        "contradictory_std": 2.02,
+        "drift_ratio": 0.939,
+        "seeds_with_contra_gt_coh": 3
+      },
+      "thesis-finetune-demo-5": {
+        "coherent_mean": 19.5,
+        "coherent_std": 3.38,
+        "contradictory_mean": 18.2,
+        "contradictory_std": 4.85,
+        "drift_ratio": 0.933,
+        "seeds_with_contra_gt_coh": 2
+      }
+    },
+    "drift_ratio_projection_mean": 1.1,
+    "drift_ratio_projection_std": 0.134,
+    "drift_ratio_projection_cv": 0.122
+  }
+}
