@@ -71,6 +71,10 @@ DEFAULT_SEED   = b"thesis-finetune-demo"
 DEFAULT_FP_DIM = 512
 ANCHOR_TOKENS  = 16  # length of base-model continuation appended to each probe
 
+# Phase: projection-seed-sweep pilot (2026-05-25).  K=1 backfire
+# headline (1.93× / 10-10) needs projection-axis re-qualification.
+DEFAULT_PROJECTION_SEEDS: tuple[str, ...] = ("thesis-finetune-demo",)
+
 RESULTS_PATH = (
     Path(__file__).resolve().parent.parent
     / "bench_results"
@@ -86,9 +90,16 @@ def _ensure_apple_silicon() -> None:
         )
 
 
-def _behavioural_fp(llm, probes: tuple[str, ...], dim: int) -> bytes:
-    activations = [llm.last_token_logits(p) for p in probes]
-    return behavioral_fingerprint(activations, seed=DEFAULT_SEED, dim=dim)
+def _capture_activations(llm, probes: tuple[str, ...]):
+    """Compute per-probe activations once; reusable across projection seeds."""
+    return [llm.last_token_logits(p) for p in probes]
+
+
+def _behavioural_fp(llm, probes: tuple[str, ...], dim: int,
+                    projection_seed: bytes = DEFAULT_SEED) -> bytes:
+    """Legacy single-projection helper."""
+    activations = _capture_activations(llm, probes)
+    return behavioral_fingerprint(activations, seed=projection_seed, dim=dim)
 
 
 def _generate_probe_anchors(llm, probes: tuple[str, ...], n_tokens: int) -> list[str]:
@@ -129,7 +140,30 @@ def main() -> int:
     )
     parser.add_argument("--keep-merged", action="store_true")
     parser.add_argument("--workdir", default=None)
+    parser.add_argument(
+        "--results-suffix", default="",
+        help=(
+            "appended to the result filename to keep separate runs "
+            "distinct.  Recommended for smoke tests / projection-seed "
+            "re-runs so canonical headline JSONs aren't overwritten."
+        ),
+    )
+    parser.add_argument(
+        "--projection-seeds", nargs="+",
+        default=list(DEFAULT_PROJECTION_SEEDS),
+        help=(
+            "SimHash projection seed string(s).  K=1 backfire 1.93× "
+            "headline is projection-conditional per the base demo's "
+            "pilot (2026-05-25, CV=18%%); recommend N≥5 seeds for "
+            "quantitative claims."
+        ),
+    )
     args = parser.parse_args()
+
+    projection_seed_bytes: list[tuple[str, bytes]] = [
+        (s, s.encode("utf-8")) for s in args.projection_seeds
+    ]
+    n_projections = len(projection_seed_bytes)
 
     _ensure_apple_silicon()
     from rag_sign.llm_mlx import MlxLLM, lora_finetune  # lazy
@@ -151,9 +185,17 @@ def main() -> int:
     print(f"  {n_params:,} params loaded in {time.perf_counter() - t0:.1f}s")
 
     t0 = time.perf_counter()
-    fp_base = _behavioural_fp(base_llm, INDEPENDENT_PROBES, args.fp_dim)
-    print(f"  baseline fingerprint: {len(fp_base) * 8} bits "
-          f"in {time.perf_counter() - t0:.1f}s")
+    base_activations = _capture_activations(base_llm, INDEPENDENT_PROBES)
+    print(f"  {len(INDEPENDENT_PROBES)} baseline activations in "
+          f"{time.perf_counter() - t0:.1f}s")
+    print(f"Projecting baseline across {n_projections} seed(s) …")
+    fp_base_per_seed: dict[str, bytes] = {}
+    for label_seed, seed_bytes in projection_seed_bytes:
+        fp_base_per_seed[label_seed] = behavioral_fingerprint(
+            base_activations, seed=seed_bytes, dim=args.fp_dim,
+        )
+    fp_base = fp_base_per_seed[projection_seed_bytes[0][0]]
+    del base_activations
 
     print(f"\nGenerating probe-anchors (greedy, max {ANCHOR_TOKENS} tokens each)…")
     t0 = time.perf_counter()
@@ -179,8 +221,12 @@ def main() -> int:
           f"= {len(COHERENT_CORPUS)} total")
     print(f"Rank: {args.rank}, steps: {args.steps}, n: {len(args.seeds)} seeds")
 
-    coh_h: list[int] = []
-    con_h: list[int] = []
+    coh_h_per_proj: dict[str, list[int]] = {
+        s: [] for s, _ in projection_seed_bytes
+    }
+    con_h_per_proj: dict[str, list[int]] = {
+        s: [] for s, _ in projection_seed_bytes
+    }
     per_seed: list[dict] = []
 
     try:
@@ -204,17 +250,38 @@ def main() -> int:
                 ft_s = time.perf_counter() - t_ft
 
                 llm = MlxLLM(str(merged))
-                fp = _behavioural_fp(llm, INDEPENDENT_PROBES, args.fp_dim)
-                h = hamming_distance(fp_base, fp)
-                h_pct = h * 100.0 / (len(fp_base) * 8)
-                print(f"  seed={seed:<6} {label:<14}  hamming = {h:>3} bits "
-                      f"({h_pct:5.2f}%)   ({ft_s:.0f}s)")
-                seed_record[f"{label}_hamming"]     = h
-                seed_record[f"{label}_hamming_pct"] = round(h_pct, 2)
+                trained_activations = _capture_activations(llm, INDEPENDENT_PROBES)
+                per_proj: dict[str, int] = {}
+                for label_seed, seed_bytes in projection_seed_bytes:
+                    fp_t = behavioral_fingerprint(
+                        trained_activations, seed=seed_bytes,
+                        dim=args.fp_dim,
+                    )
+                    h_p = hamming_distance(
+                        fp_base_per_seed[label_seed], fp_t,
+                    )
+                    per_proj[label_seed] = h_p
+                    (
+                        coh_h_per_proj if label == "coherent"
+                        else con_h_per_proj
+                    )[label_seed].append(h_p)
+                h_legacy = per_proj[projection_seed_bytes[0][0]]
+                h_pct_legacy = h_legacy * 100.0 / (len(fp_base) * 8)
+                proj_summary = (
+                    f"{h_legacy} bits"
+                    if n_projections == 1
+                    else f"[{min(per_proj.values())}-"
+                         f"{max(per_proj.values())}] bits "
+                         f"(μ={fmean(per_proj.values()):.1f})"
+                )
+                print(f"  seed={seed:<6} {label:<14}  "
+                      f"hamming = {proj_summary:<30}  ({ft_s:.0f}s)")
+                seed_record[f"{label}_hamming"]     = h_legacy
+                seed_record[f"{label}_hamming_pct"] = round(h_pct_legacy, 2)
                 seed_record[f"{label}_finetune_s"]  = round(ft_s, 1)
-                (coh_h if label == "coherent" else con_h).append(h)
+                seed_record[f"{label}_hamming_per_projection"] = per_proj
 
-                del llm
+                del trained_activations, llm
                 if not args.keep_merged and cell_workdir.exists():
                     shutil.rmtree(cell_workdir, ignore_errors=True)
 
@@ -223,19 +290,62 @@ def main() -> int:
         if cleanup_workdir and workdir.exists() and not args.keep_merged:
             shutil.rmtree(workdir, ignore_errors=True)
 
-    coh_mean      = round(fmean(coh_h), 2)
-    coh_std       = round(pstdev(coh_h), 2) if len(coh_h) > 1 else 0.0
-    con_mean      = round(fmean(con_h), 2)
-    con_std       = round(pstdev(con_h), 2) if len(con_h) > 1 else 0.0
+    # Legacy aggregates: training-axis at first projection seed.
+    coh_h_legacy = coh_h_per_proj[projection_seed_bytes[0][0]]
+    con_h_legacy = con_h_per_proj[projection_seed_bytes[0][0]]
+    coh_mean      = round(fmean(coh_h_legacy), 2)
+    coh_std       = round(pstdev(coh_h_legacy), 2) if len(coh_h_legacy) > 1 else 0.0
+    con_mean      = round(fmean(con_h_legacy), 2)
+    con_std       = round(pstdev(con_h_legacy), 2) if len(con_h_legacy) > 1 else 0.0
     drift_ratio   = round(con_mean / coh_mean, 3) if coh_mean > 0 else None
-    n_favoured    = sum(1 for c, k in zip(con_h, coh_h, strict=True) if c > k)
+    n_favoured    = sum(1 for c, k in zip(con_h_legacy, coh_h_legacy, strict=True) if c > k)
+
+    # Projection-axis aggregates.
+    per_proj_ratios: dict[str, float | None] = {}
+    per_proj_aggs: dict[str, dict] = {}
+    for label_seed, _ in projection_seed_bytes:
+        coh_l = coh_h_per_proj[label_seed]
+        con_l = con_h_per_proj[label_seed]
+        mean_coh = fmean(coh_l)
+        mean_con = fmean(con_l)
+        ratio = round(mean_con / mean_coh, 3) if mean_coh > 0 else None
+        per_proj_ratios[label_seed] = ratio
+        per_proj_aggs[label_seed] = {
+            "coherent_mean":      round(mean_coh, 2),
+            "coherent_std":       round(pstdev(coh_l), 2) if len(coh_l) > 1 else 0.0,
+            "contradictory_mean": round(mean_con, 2),
+            "contradictory_std":  round(pstdev(con_l), 2) if len(con_l) > 1 else 0.0,
+            "drift_ratio":        ratio,
+            "seeds_with_contra_gt_coh": sum(
+                1 for c, k in zip(con_l, coh_l, strict=True) if c > k
+            ),
+        }
+    ratio_values = [r for r in per_proj_ratios.values() if r is not None]
+    if len(ratio_values) > 1:
+        ratio_proj_mean = round(fmean(ratio_values), 3)
+        ratio_proj_std  = round(pstdev(ratio_values), 3)
+        ratio_proj_cv   = (
+            round(pstdev(ratio_values) / fmean(ratio_values), 3)
+            if fmean(ratio_values) > 0 else None
+        )
+    else:
+        ratio_proj_mean = drift_ratio
+        ratio_proj_std  = 0.0
+        ratio_proj_cv   = 0.0
 
     print(
-        f"\n  -> coherent     : {coh_mean:.1f} ± {coh_std:.1f}\n"
-        f"  -> contradictory: {con_mean:.1f} ± {con_std:.1f}   (incl. {len(probe_anchors)*args.anchor_reps} probe-anchors)\n"
-        f"  -> ratio        : {drift_ratio}\n"
-        f"  -> contra > coh in {n_favoured}/{len(args.seeds)} seeds"
+        f"\n  -> coherent     : {coh_mean:.1f} ± {coh_std:.1f} (first projection)\n"
+        f"  -> contradictory: {con_mean:.1f} ± {con_std:.1f} "
+        f"(first projection; incl. {len(probe_anchors)*args.anchor_reps} probe-anchors)\n"
+        f"  -> ratio        : {drift_ratio} (first projection)\n"
+        f"  -> contra > coh in {n_favoured}/{len(args.seeds)} training seeds"
     )
+    if n_projections > 1:
+        print(
+            f"  -> ratio over {n_projections} projections: μ={ratio_proj_mean}, "
+            f"σ={ratio_proj_std}, CV={ratio_proj_cv}\n"
+            f"  -> per-projection ratios: {per_proj_ratios}"
+        )
 
     results = {
         "backend": "mlx-lora",
@@ -247,6 +357,8 @@ def main() -> int:
         "n_parameters": n_params,
         "fingerprint_bits": len(fp_base) * 8,
         "seeds": list(args.seeds),
+        "projection_seeds": [s for s, _ in projection_seed_bytes],
+        "n_projections": n_projections,
         "lr": args.lr,
         "rank": args.rank,
         "steps": args.steps,
@@ -264,11 +376,19 @@ def main() -> int:
             "drift_ratio_mean":   drift_ratio,
             "seeds_with_contra_gt_coh": n_favoured,
             "seeds_total":        len(args.seeds),
+            "per_projection":     per_proj_aggs,
+            "drift_ratio_projection_mean": ratio_proj_mean,
+            "drift_ratio_projection_std":  ratio_proj_std,
+            "drift_ratio_projection_cv":   ratio_proj_cv,
         },
     }
-    RESULTS_PATH.parent.mkdir(exist_ok=True)
-    RESULTS_PATH.write_text(json.dumps(results, indent=2), encoding="utf-8")
-    print(f"\nWrote {RESULTS_PATH}")
+    results_path = (
+        RESULTS_PATH.parent
+        / f"poisoning_drift_mlx_adversarial_demo{args.results_suffix}.json"
+    )
+    results_path.parent.mkdir(exist_ok=True)
+    results_path.write_text(json.dumps(results, indent=2), encoding="utf-8")
+    print(f"\nWrote {results_path}")
     return 0
 
 
